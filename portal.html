@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Client Portal</title>
+<link rel="stylesheet" href="css/style.css?v=8">
+</head>
+<body>
+
+<!-- ══ PORTAL LOGIN ══ -->
+<div id="portal-login-screen" class="auth-screen" style="display:none;">
+  <div class="auth-card">
+    <div class="auth-wordmark">Studio<em>.</em></div>
+    <div class="auth-sub" id="portal-login-sub">Client portal — sign in to view your projects</div>
+
+    <div class="auth-info">
+      🔒 Your portal is private. Enter your email and we'll send a secure sign-in link.
+    </div>
+
+    <div class="auth-error" id="portal-auth-error"></div>
+
+    <div id="portal-magic-sent" style="display:none;">
+      <div style="text-align:center;padding:20px 0;">
+        <div style="font-size:40px;margin-bottom:16px;">✉️</div>
+        <div style="font-family:'DM Serif Display',serif;font-size:20px;margin-bottom:8px;">Check your email</div>
+        <div style="color:var(--text-mid);font-size:13.5px;line-height:1.65;">We've sent a sign-in link to <strong id="portal-magic-email"></strong>. Click it to access your portal.</div>
+      </div>
+    </div>
+
+    <div id="portal-login-form">
+      <div class="fgroup">
+        <label>Your Email</label>
+        <input type="email" id="portal-email" placeholder="jane@example.com" autocomplete="email">
+      </div>
+      <button class="btn-login" onclick="sendPortalMagicLink()">Send sign-in link</button>
+
+      <div class="auth-divider">or sign in with password</div>
+
+      <div class="fgroup">
+        <label>Password</label>
+        <input type="password" id="portal-password" placeholder="••••••••" autocomplete="current-password">
+      </div>
+      <button class="btn-login-secondary" onclick="portalSignIn()">Sign in with password</button>
+    </div>
+
+    <div class="auth-footer" style="margin-top:14px;">
+      <a href="index.html">← Studio owner? Sign in here</a>
+    </div>
+  </div>
+</div>
+
+<!-- ══ PORTAL APP ══ -->
+<div id="portal-app" style="display:none;flex-direction:column;min-height:100vh;">
+
+  <div class="portal-nav">
+    <div class="portal-logo">Studio<em>.</em></div>
+    <div style="display:flex;align-items:center;gap:12px;">
+      <div style="font-size:13px;font-weight:500;color:var(--text);" id="portal-client-name">Loading…</div>
+      <div class="avatar av-md" id="portal-client-avatar">?</div>
+      <button class="theme-toggle" onclick="toggleTheme();updateThemeIcon()" title="Toggle theme" id="portal-theme-btn">🌙</button>
+      <button class="btn btn-ghost btn-sm" onclick="portalSignOut()">Sign out</button>
+    </div>
+  </div>
+
+  <div class="portal-body">
+
+    <!-- Welcome -->
+    <div class="portal-welcome" id="portal-welcome">
+      <button class="portal-welcome-close" onclick="document.getElementById('portal-welcome').style.display='none'">×</button>
+      <div class="portal-welcome-title" id="portal-welcome-title">👋 Welcome to your client portal!</div>
+      <div class="portal-welcome-text" id="portal-welcome-text">Here you'll find all your invoices, contracts, files and project updates.</div>
+    </div>
+
+    <!-- Project header -->
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px;" id="portal-project-header">
+      <div>
+        <div style="font-family:'DM Serif Display',serif;font-size:22px;color:var(--text);" id="portal-project-name">Loading…</div>
+        <div style="font-size:13px;color:var(--text-mid);" id="portal-project-meta"></div>
+      </div>
+      <button class="btn btn-gold btn-sm" onclick="openModal('portal-message')">Send Message</button>
+    </div>
+
+    <!-- Project selector (if multiple) -->
+    <div id="portal-project-selector" style="display:none;margin-bottom:18px;">
+      <div class="fgroup" style="margin:0;">
+        <label>Viewing Project</label>
+        <select id="portal-project-select" onchange="loadPortalProject()"></select>
+      </div>
+    </div>
+
+    <!-- Status timeline -->
+    <div class="card card-pad" style="margin-bottom:20px;">
+      <div style="font-size:10.5px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--text-mid);margin-bottom:14px;">Where we are</div>
+      <div id="portal-timeline"><div class="loading"><div class="spinner"></div></div></div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="portal-tabs">
+      <button class="portal-tab active" onclick="switchPortalTab(this,'ptab-overview')">Overview</button>
+      <button class="portal-tab" onclick="switchPortalTab(this,'ptab-invoices')">Invoices</button>
+      <button class="portal-tab" onclick="switchPortalTab(this,'ptab-contracts')">Contracts</button>
+      <button class="portal-tab" onclick="switchPortalTab(this,'ptab-files')">Files</button>
+      <button class="portal-tab" onclick="switchPortalTab(this,'ptab-messages')">Messages <span id="portal-msg-badge" style="display:none;background:var(--red);color:white;font-size:10px;padding:1px 5px;border-radius:8px;margin-left:4px;"></span></button>
+      <button class="portal-tab" onclick="switchPortalTab(this,'ptab-notes')">Notes & Links</button>
+    </div>
+
+    <!-- OVERVIEW -->
+    <div id="ptab-overview" class="portal-tab-content active">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:18px;">
+        <div class="card card-pad">
+          <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--text-mid);margin-bottom:8px;">Balance Due</div>
+          <div style="font-family:'DM Serif Display',serif;font-size:28px;color:var(--text);" id="portal-balance">£—</div>
+          <div style="font-size:12px;color:var(--text-mid);margin-top:4px;" id="portal-balance-sub"></div>
+          <div class="progress-bar" style="margin-top:10px;"><div class="progress-fill" id="portal-balance-bar" style="width:0%"></div></div>
+        </div>
+        <div class="card card-pad">
+          <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--text-mid);margin-bottom:8px;">Next Steps</div>
+          <div id="portal-next-steps"><div class="loading"><div class="spinner"></div></div></div>
+        </div>
+      </div>
+      <div class="card card-pad" id="portal-all-projects">
+        <div style="font-weight:600;font-size:13.5px;margin-bottom:13px;">All Your Projects</div>
+        <div id="portal-projects-table"><div class="loading"><div class="spinner"></div></div></div>
+      </div>
+    </div>
+
+    <!-- INVOICES -->
+    <div id="ptab-invoices" class="portal-tab-content">
+      <div id="portal-invoices-list"><div class="loading"><div class="spinner"></div></div></div>
+    </div>
+
+    <!-- CONTRACTS -->
+    <div id="ptab-contracts" class="portal-tab-content">
+      <div id="portal-contracts-list"><div class="loading"><div class="spinner"></div></div></div>
+    </div>
+
+    <!-- FILES -->
+    <div id="ptab-files" class="portal-tab-content">
+      <div class="upload-zone" id="portal-upload-zone">
+        <div class="upload-zone-icon">📎</div>
+        <div class="upload-zone-text">Drop files to share with your studio</div>
+        <div class="upload-zone-sub">Any file type · Max 50MB</div>
+      </div>
+      <div id="portal-files-list"><div class="loading"><div class="spinner"></div></div></div>
+    </div>
+
+    <!-- MESSAGES -->
+    <div id="ptab-messages" class="portal-tab-content">
+      <div class="card" style="overflow:hidden;">
+        <div class="msg-thread" id="portal-msg-thread" style="max-height:450px;">
+          <div class="loading"><div class="spinner"></div></div>
+        </div>
+        <div class="msg-input-row">
+          <input class="msg-input" id="portal-msg-input" placeholder="Type a message to your studio…" onkeydown="if(event.key==='Enter')sendPortalMessage()">
+          <button class="msg-send" onclick="sendPortalMessage()">Send</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- NOTES & LINKS -->
+    <div id="ptab-notes" class="portal-tab-content">
+      <div id="portal-notes-list"><div class="loading"><div class="spinner"></div></div></div>
+      <div style="margin-top:18px;">
+        <div style="font-weight:600;font-size:13.5px;margin-bottom:10px;color:var(--text);">Add a note or link</div>
+        <div class="card card-pad">
+          <div class="fgroup"><label>Type</label>
+            <select id="pnote-type" onchange="togglePortalNoteType()">
+              <option value="note">Note</option>
+              <option value="link">Link / URL</option>
+            </select>
+          </div>
+          <div class="fgroup"><label>Title</label><input type="text" id="pnote-title" placeholder="Note title or link name"></div>
+          <div class="fgroup" id="pnote-content-group"><label>Content</label><textarea id="pnote-content" placeholder="Your note…" style="min-height:60px;"></textarea></div>
+          <div class="fgroup" id="pnote-url-group" style="display:none;"><label>URL</label><input type="url" id="pnote-url" placeholder="https://"></div>
+          <button class="btn btn-dark" onclick="addPortalNote()">Add Note</button>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /portal-body -->
+</div><!-- /portal-app -->
+
+<!-- ══ MODALS ══ -->
+
+<!-- Send Message Modal -->
+<div id="modal-portal-message" class="modal-overlay">
+  <div class="modal narrow">
+    <div class="modal-hdr"><div class="modal-title">Send Message</div><button class="modal-x" onclick="closeModal('portal-message')">×</button></div>
+    <div class="modal-body">
+      <div class="fgroup"><label>Message</label><textarea id="portal-modal-msg" placeholder="Type your message…" style="min-height:100px;"></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('portal-message')">Cancel</button>
+      <button class="btn btn-dark" onclick="sendFromModal()">Send Message</button>
+    </div>
+  </div>
+</div>
+
+<!-- Signature Modal -->
+<div id="modal-portal-sign" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-hdr"><div class="modal-title" id="sign-modal-title">Sign Contract</div><button class="modal-x" onclick="closeModal('portal-sign')">×</button></div>
+    <div class="modal-body">
+      <div style="background:var(--surface2);border-radius:var(--r);padding:14px;font-size:13px;color:var(--text-mid);margin-bottom:16px;max-height:200px;overflow-y:auto;line-height:1.65;" id="sign-modal-preview"></div>
+      <div class="fgroup">
+        <label>Your Signature</label>
+        <canvas class="sig-pad" id="sig-canvas" style="width:100%;height:100px;"></canvas>
+      </div>
+      <div class="sig-actions">
+        <button class="btn btn-outline btn-sm" onclick="sigPad && sigPad.clear()">Clear</button>
+        <div style="font-size:12px;color:var(--text-mid);margin-left:4px;">Draw your signature above</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('portal-sign')">Cancel</button>
+      <button class="btn btn-green" onclick="submitSignature()">Sign & Submit</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/client.js"></script>
+<script src="js/portal.js"></script>
+</body>
+</html>

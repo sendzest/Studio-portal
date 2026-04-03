@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Studio Portal</title>
+<link rel="stylesheet" href="css/style.css?v=8">
+</head>
+<body>
+
+<div class="app-layout">
+
+  <!-- ══ SIDEBAR ══ -->
+  <nav class="sidebar" id="sidebar">
+    <div class="sidebar-logo">Studio<em>.</em></div>
+    <div class="sidebar-nav">
+      <span class="nav-label">Workspace</span>
+      <button class="nav-item active" onclick="showPage('dashboard',this)"><span class="nav-icon">▪</span> Dashboard</button>
+      <button class="nav-item" onclick="showPage('projects',this)"><span class="nav-icon">📁</span> Projects</button>
+      <button class="nav-item" onclick="showPage('clients',this)"><span class="nav-icon">👥</span> Clients</button>
+      <button class="nav-item" onclick="showPage('scheduling',this)"><span class="nav-icon">📅</span> Scheduling</button>
+      <button class="nav-item" id="nav-time" onclick="showPage('time',this)"><span class="nav-icon">⏱</span> Time Tracking</button>
+      <span class="nav-label">Finance</span>
+      <button class="nav-item" id="nav-invoices" onclick="showPage('invoices',this)"><span class="nav-icon">🧾</span> Invoices</button>
+      <button class="nav-item" onclick="showPage('contracts',this)"><span class="nav-icon">📝</span> Contracts</button>
+      <span class="nav-label">Content</span>
+      <button class="nav-item" onclick="showPage('files',this)"><span class="nav-icon">🗂</span> Files</button>
+      <button class="nav-item" onclick="showPage('notes',this)"><span class="nav-icon">📌</span> Notes</button>
+      <span class="nav-label">Studio</span>
+      <button class="nav-item" onclick="showPage('notifications',this)"><span class="nav-icon">🔔</span> Notifications</button>
+      <button class="nav-item" id="nav-settings" onclick="showPage('settings',this)"><span class="nav-icon">⚙️</span> Settings</button>
+    </div>
+    <div id="sidebar-timer-widget" style="padding:0 10px 8px;"></div>
+    <div class="sidebar-footer">
+      <div class="user-chip" id="user-chip">
+        <div class="avatar av-md" id="user-avatar">?</div>
+        <div style="flex:1;min-width:0;">
+          <div class="user-name" id="user-name">Loading…</div>
+          <div class="user-role">Studio Owner</div>
+        </div>
+        <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">🌙</button>
+      </div>
+      <button class="nav-item" onclick="signOut()" style="margin-top:4px;"><span class="nav-icon">↩</span> Sign out</button>
+    </div>
+  </nav>
+
+  <!-- ══ MAIN ══ -->
+  <div class="main">
+
+    <!-- ── DASHBOARD ── -->
+    <div id="page-dashboard" class="page active">
+      <div class="topbar">
+        <div class="topbar-title">Dashboard</div>
+        <div class="topbar-actions">
+          <div class="searchbar">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="global-search" placeholder="Search projects, clients…" oninput="globalSearch(this.value)">
+          </div>
+          <button class="btn btn-dark" onclick="openModal('new-project')">+ New Project</button>
+        </div>
+      </div>
+      <div style="padding:28px;display:flex;flex-direction:column;gap:16px;">
+
+        <!-- Stats row -->
+        <div class="stats-row" id="stats-row">
+          <div class="stat-card"><div class="spinner" style="margin:8px 0;"></div></div>
+          <div class="stat-card"><div class="spinner" style="margin:8px 0;"></div></div>
+          <div class="stat-card"><div class="spinner" style="margin:8px 0;"></div></div>
+          <div class="stat-card"><div class="spinner" style="margin:8px 0;"></div></div>
+        </div>
+
+        <!-- Calendar + upcoming -->
+        <div class="card card-pad" id="dashboard-calendar">
+          <div class="loading"><div class="spinner"></div></div>
+        </div>
+
+        <!-- Projects + week chart -->
+        <div style="display:grid;grid-template-columns:1fr 210px;gap:16px;align-items:start;">
+          <div>
+            <div id="dashboard-clock-widget"></div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;margin-top:16px;">
+              <div style="font-family:'DM Serif Display',serif;font-size:17px;color:var(--text);">Active Projects</div>
+              <button class="btn btn-ghost btn-sm" onclick="showPage('projects',document.getElementById('nav-projects'))">View all →</button>
+            </div>
+            <div id="dashboard-projects"><div class="loading"><div class="spinner"></div></div></div>
+          </div>
+          <div class="card card-pad" id="dashboard-week-chart">
+            <div class="loading"><div class="spinner"></div></div>
+          </div>
+        </div>
+
+        <!-- Quick note + Notion -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+          <div class="card card-pad" id="dashboard-note"><div class="loading"><div class="spinner"></div></div></div>
+          <div class="card card-pad" id="dashboard-notion"><div class="loading"><div class="spinner"></div></div></div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ── PROJECTS ── -->
+    <div id="page-projects" class="page">
+      <div class="topbar">
+        <div class="topbar-title">Projects</div>
+        <div class="topbar-actions">
+
+          <button class="btn btn-dark" onclick="openModal('new-project')">+ New Project</button>
+        </div>
+      </div>
+      <div style="padding:28px;">
+        <div id="proj-list-content">
+          <div class="loading"><div class="spinner"></div> Loading…</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── PROJECT DETAIL ── -->
+    <div id="page-project-detail" class="page">
+      <div class="topbar">
+        <div class="topbar-title">
+          <span class="topbar-crumb" onclick="showPage('projects',null)">Projects</span>
+          <span class="topbar-sep">›</span>
+          <span id="pd-title">Project</span>
+        </div>
+        <div class="topbar-actions" id="pd-actions">
+          <button class="btn btn-outline btn-sm" onclick="openShareInvoiceModal()">🔗 Share Invoice</button>
+          <button class="btn btn-accent btn-sm" onclick="openModal('new-invoice')">+ Invoice</button>
+          <button class="btn btn-dark btn-sm" onclick="openModal('new-contract')">+ Contract</button>
+        </div>
+      </div>
+      <div style="padding:28px;" id="pd-content">
+        <div class="loading"><div class="spinner"></div> Loading project…</div>
+      </div>
+    </div>
+
+    <!-- ── CLIENTS ── -->
+    <div id="page-clients" class="page">
+      <div class="topbar">
+        <div class="topbar-title">Clients</div>
+        <div class="topbar-actions">
+          <div class="searchbar">
+            <span class="search-icon">🔍</span>
+            <input type="text" placeholder="Search clients…" oninput="filterClients(this.value)">
+          </div>
+          <button class="btn btn-dark" onclick="openModal('new-client')">+ Add Client</button>
+        </div>
+      </div>
+      <div style="padding:28px;">
+        <div id="clients-list">
+          <div class="loading"><div class="spinner"></div> Loading clients…</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── SCHEDULING ── -->
+    <div id="page-scheduling" class="page">
+      <div class="topbar">
+        <div class="topbar-title">Scheduling</div>
+        <div class="topbar-actions">
+          <button class="btn btn-outline" onclick="showToast('Google Calendar sync coming soon','')">Sync Google Calendar</button>
+          <button class="btn btn-dark" onclick="openModal('new-booking')">+ New Booking</button>
+        </div>
+      </div>
+      <div style="padding:28px;display:grid;grid-template-columns:1fr 300px;gap:20px;">
+        <div class="card card-pad-lg">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
+            <div class="section-title" id="cal-month-label">Loading…</div>
+            <div style="display:flex;gap:6px;">
+              <button class="btn btn-ghost btn-sm" onclick="calNav(-1)">‹</button>
+              <button class="btn btn-ghost btn-sm" onclick="calNav(1)">›</button>
+            </div>
+          </div>
+          <div class="cal-header-days">
+            <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
+          </div>
+          <div class="cal-grid" id="cal-grid"></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:14px;">
+          <div class="card card-pad">
+            <div style="font-weight:600;font-size:13.5px;margin-bottom:13px;">Upcoming Bookings</div>
+            <div id="upcoming-bookings">
+              <div class="loading"><div class="spinner"></div></div>
+            </div>
+          </div>
+          <div class="card card-pad">
+            <div style="font-weight:600;font-size:13.5px;margin-bottom:6px;">Booking Link</div>
+            <div style="font-size:12px;color:var(--text-mid);margin-bottom:11px;line-height:1.6;">Share with clients so they can book directly.</div>
+            <button class="btn btn-outline btn-full btn-sm" onclick="copyBookingLink()">📋 Copy booking link</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── INVOICES ── -->
+    <div id="page-invoices" class="page">
+      <div class="topbar">
+        <div class="topbar-title">Invoices</div>
+        <div class="topbar-actions">
+          <button class="btn btn-dark" onclick="openModal('new-invoice')">+ New Invoice</button>
+        </div>
+      </div>
+      <div style="padding:28px;">
+        <div class="stats-row" style="grid-template-columns:repeat(3,1fr);" id="invoice-stats">
+          <div class="stat-card"><div class="spinner"></div></div>
+          <div class="stat-card"><div class="spinner"></div></div>
+          <div class="stat-card"><div class="spinner"></div></div>
+        </div>
+        <div class="wf-wrap">
+          <table class="wf-table">
+            <thead><tr>
+              <th>Invoice</th><th>Client</th><th>Project</th>
+              <th>Amount</th><th>Due Date</th><th>Status</th><th>Share</th><th></th>
+            </tr></thead>
+            <tbody id="invoices-tbody">
+              <tr><td colspan="8"><div class="loading"><div class="spinner"></div></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── CONTRACTS ── -->
+    <div id="page-contracts" class="page">
+      <div class="topbar">
+        <div class="topbar-title">Contracts</div>
+        <div class="topbar-actions">
+          <button class="btn btn-dark" onclick="openModal('new-contract')">+ New Contract</button>
+        </div>
+      </div>
+      <div style="padding:28px;">
+        <div id="contracts-list">
+          <div class="loading"><div class="spinner"></div> Loading contracts…</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── FILES ── -->
+    <div id="page-files" class="page">
+      <div class="topbar">
+        <div class="topbar-title">Files</div>
+        <div class="topbar-actions">
+          <select id="files-project-filter" class="btn btn-outline btn-sm" onchange="loadFiles()" style="padding:6px 28px 6px 10px;">
+            <option value="">All projects</option>
+          </select>
+        </div>
+      </div>
+      <div style="padding:28px;">
+        <div class="upload-zone" id="upload-zone">
+          <div class="upload-zone-icon">☁️</div>
+          <div class="upload-zone-text">Drop files here or click to upload</div>
+          <div class="upload-zone-sub">PDF, JPG, PNG, DOCX, ZIP · Max 50MB</div>
+        </div>
+        <div id="files-grid-container">
+          <div class="loading"><div class="spinner"></div> Loading files…</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── NOTES ── -->
+    <div id="page-notes" class="page">
+      <div class="topbar">
+        <div class="topbar-title">Notes & Links</div>
+        <div class="topbar-actions">
+          <button class="btn btn-dark" onclick="openModal('add-note')">+ New Note</button>
+        </div>
+      </div>
+      <div style="padding:28px;">
+        <div id="notes-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div class="loading" style="grid-column:1/-1;"><div class="spinner"></div> Loading…</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── NOTIFICATIONS ── -->
+    <div id="page-notifications" class="page">
+      <div class="topbar">
+        <div class="topbar-title">Email Notifications</div>
+        <div class="topbar-actions">
+          <button class="btn btn-dark" onclick="saveNotificationSettings()">Save Settings</button>
+        </div>
+      </div>
+      <div style="padding:28px;max-width:620px;">
+        <div style="font-size:13.5px;color:var(--text-mid);margin-bottom:20px;line-height:1.65;">
+          Configure which emails are sent automatically. All emails use your studio name and branding.
+        </div>
+        <div class="card" style="overflow:hidden;margin-bottom:18px;">
+          <div style="padding:13px 16px;background:var(--surface2);border-bottom:1px solid var(--border);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--text-mid);">Client Notifications</div>
+          <div class="email-rule"><div class="email-rule-info"><div class="email-rule-title">Invoice sent</div><div class="email-rule-desc">Client receives email when you send an invoice</div></div><button class="toggle on" id="notif-invoice_sent" onclick="this.classList.toggle('on')"></button></div>
+          <div class="email-rule"><div class="email-rule-info"><div class="email-rule-title">Invoice overdue reminder</div><div class="email-rule-desc">Auto reminder 3 days after due date</div></div><button class="toggle on" id="notif-invoice_overdue_reminder" onclick="this.classList.toggle('on')"></button></div>
+          <div class="email-rule"><div class="email-rule-info"><div class="email-rule-title">Contract sent for signature</div><div class="email-rule-desc">Client receives contract and signing link</div></div><button class="toggle on" id="notif-contract_sent" onclick="this.classList.toggle('on')"></button></div>
+          <div class="email-rule"><div class="email-rule-info"><div class="email-rule-title">Project status update</div><div class="email-rule-desc">Client notified when project stage changes</div></div><button class="toggle" id="notif-project_status_update" onclick="this.classList.toggle('on')"></button></div>
+          <div class="email-rule"><div class="email-rule-info"><div class="email-rule-title">New message</div><div class="email-rule-desc">Client emailed when you send them a message</div></div><button class="toggle on" id="notif-message_to_client" onclick="this.classList.toggle('on')"></button></div>
+        </div>
+        <div class="card" style="overflow:hidden;">
+          <div style="padding:13px 16px;background:var(--surface2);border-bottom:1px solid var(--border);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--text-mid);">Your Notifications</div>
+          <div class="email-rule"><div class="email-rule-info"><div class="email-rule-title">Invoice paid</div><div class="email-rule-desc">Notify me when a client pays</div></div><button class="toggle on" id="notif-invoice_paid" onclick="this.classList.toggle('on')"></button></div>
+          <div class="email-rule"><div class="email-rule-info"><div class="email-rule-title">Contract signed</div><div class="email-rule-desc">Notify me when a client signs a contract</div></div><button class="toggle on" id="notif-contract_signed" onclick="this.classList.toggle('on')"></button></div>
+          <div class="email-rule"><div class="email-rule-info"><div class="email-rule-title">New message from client</div><div class="email-rule-desc">Notify me when a client messages</div></div><button class="toggle on" id="notif-message_from_client" onclick="this.classList.toggle('on')"></button></div>
+          <div class="email-rule"><div class="email-rule-info"><div class="email-rule-title">New booking</div><div class="email-rule-desc">Notify me when someone books via my link</div></div><button class="toggle on" id="notif-new_booking" onclick="this.classList.toggle('on')"></button></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── SETTINGS ── -->
+    <div id="page-settings" class="page">
+      <div class="topbar"><div class="topbar-title">Settings</div></div>
+      <div style="padding:28px;max-width:580px;">
+        <div class="card card-pad-lg" style="margin-bottom:18px;">
+          <div style="font-weight:600;font-size:15px;margin-bottom:18px;">Business Profile</div>
+          <div class="fgroup"><label>Business Name</label><input type="text" id="s-business-name" placeholder="My Studio"></div>
+          <div class="fgroup"><label>Full Name</label><input type="text" id="s-full-name" placeholder="Jane Smith"></div>
+          <div class="fgroup"><label>Email</label><input type="email" id="s-email" placeholder="hello@mystudio.com"></div>
+          <div class="form-row">
+            <div class="fgroup"><label>Currency</label>
+              <select id="s-currency"><option value="GBP">GBP (£)</option><option value="USD">USD ($)</option><option value="EUR">EUR (€)</option></select>
+            </div>
+            <div class="fgroup"><label>Country</label>
+              <select id="s-country"><option value="GB">United Kingdom</option><option value="US">United States</option><option value="IE">Ireland</option></select>
+            </div>
+          </div>
+          <button class="btn btn-dark" onclick="saveProfile()">Save Profile</button>
+        </div>
+        <div class="card card-pad-lg" style="margin-bottom:18px;">
+          <div style="font-weight:600;font-size:15px;margin-bottom:18px;">Client Portal</div>
+          <div class="fgroup"><label>Portal Name</label><input type="text" id="s-portal-name" placeholder="Client Portal"></div>
+          <div class="fgroup"><label>Welcome Message</label><textarea id="s-portal-welcome" placeholder="Welcome! Here you'll find all your invoices, contracts and project updates."></textarea></div>
+          <div class="fgroup">
+            <label>Client Portal URL</label>
+            <div class="share-link-row">
+              <input class="share-link-input" id="portal-url" readonly>
+              <button class="btn btn-outline btn-sm" onclick="copyPortalUrl()">📋 Copy</button>
+            </div>
+            <div class="field-hint">Share this with clients so they can access their portal.</div>
+          </div>
+          <button class="btn btn-dark" onclick="savePortalSettings()">Save Portal Settings</button>
+        </div>
+        <div class="card card-pad-lg" style="margin-bottom:18px;">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px;">
+            <div style="width:20px;height:20px;background:var(--text);border-radius:4px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              <span style="font-size:12px;font-weight:700;color:var(--surface);font-family:serif;">N</span>
+            </div>
+            <div style="font-weight:600;font-size:15px;">Notion Integration</div>
+          </div>
+          <div style="font-size:13px;color:var(--text-mid);margin-bottom:16px;line-height:1.65;">Connect Notion to see your recently edited pages on the dashboard. You need a Notion Internal Integration token.</div>
+          <div class="fgroup">
+            <label>Notion Integration Token</label>
+            <input type="password" id="s-notion-token" placeholder="secret_xxxxxxxxxxxxxxxx">
+            <div class="field-hint">Create one at notion.so/my-integrations → New integration → copy the Internal Integration Secret</div>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-dark" onclick="saveNotionToken()">Save Token</button>
+            <button class="btn btn-ghost" onclick="testNotionConnection()">Test connection</button>
+          </div>
+        </div>
+        <div class="card card-pad-lg">
+          <div style="font-weight:600;font-size:15px;margin-bottom:18px;">Security</div>
+          <div class="fgroup"><label>New Password</label><input type="password" id="s-new-password" placeholder="New password"></div>
+          <div class="fgroup"><label>Confirm Password</label><input type="password" id="s-confirm-password" placeholder="Confirm new password"></div>
+          <button class="btn btn-dark" onclick="changePassword()">Update Password</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── TIME TRACKING ── -->
+    <div id="page-time" class="page">
+      <div class="topbar">
+        <div class="topbar-title">Time Tracking</div>
+        <div class="topbar-actions">
+          <button class="btn btn-outline btn-sm" onclick="openTimeProjectModal()">+ New Project</button>
+          <button class="btn btn-dark btn-sm" onclick="openManualTimeEntry()">+ Add Entry</button>
+        </div>
+      </div>
+      <div style="padding:28px;" id="time-page-content">
+        <div class="loading"><div class="spinner"></div> Loading…</div>
+      </div>
+    </div>
+
+    <!-- ── TIME PROJECT DETAIL ── -->
+    <div id="page-time-project-detail" class="page">
+      <div class="topbar">
+        <div class="topbar-title">
+          <span class="topbar-crumb" onclick="showPage('time',document.getElementById('nav-time'))">Time Tracking</span>
+          <span class="topbar-sep">›</span>
+          <span id="time-pd-title">Project</span>
+        </div>
+        <div class="topbar-actions">
+          <button class="btn btn-green btn-sm" id="time-pd-clockin-btn" onclick="quickClockInFromDetail()">▶ Clock In</button>
+        </div>
+      </div>
+      <div style="padding:28px;" id="time-project-detail-content">
+        <div class="loading"><div class="spinner"></div> Loading…</div>
+      </div>
+    </div>
+
+  </div><!-- /main -->
+</div><!-- /app-layout -->
+
+<!-- ══════════════════════════════════════════
+     MODALS
+══════════════════════════════════════════ -->
+
+<!-- New Project -->
+<div id="modal-new-project" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-hdr"><div class="modal-title">New Project</div><button class="modal-x" onclick="closeModal('new-project')">×</button></div>
+    <div class="modal-body">
+      <div class="fgroup"><label>Project Name</label><input type="text" id="np-name" placeholder="e.g. Smith Family Branding"></div>
+      <div class="fgroup"><label>Client</label>
+        <select id="np-client">
+          <option value="">Select client…</option>
+        </select>
+      </div>
+      <div class="fgroup"><label>Service Type</label>
+        <select id="np-service">
+          <option>Media Services</option>
+          <option>Branding & Web</option>
+          <option>Consultation & Coaching</option>
+          <option>Photography</option>
+          <option>Copywriting</option>
+          <option>Other</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <div class="fgroup"><label>Hourly Rate (£)</label><input type="number" id="np-hourly-rate" placeholder="0.00" step="0.01"></div>
+        <div class="fgroup"><label>Project Value (£)</label><input type="number" id="np-value" placeholder="0.00" step="0.01"></div>
+      </div>
+      <div class="fgroup"><label>Start Date</label><input type="date" id="np-date"></div>
+      <div class="fgroup"><label>Notes</label><textarea id="np-notes" placeholder="Any additional notes…"></textarea></div>
+      <div class="fgroup"><label>Project Colour</label><div id="np-color-swatches" class="color-swatches"></div></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('new-project')">Cancel</button>
+      <button class="btn btn-accent" onclick="createProject()">Create Project</button>
+    </div>
+  </div>
+</div>
+
+<!-- New Client -->
+<div id="modal-new-client" class="modal-overlay">
+  <div class="modal narrow">
+    <div class="modal-hdr"><div class="modal-title">Add Client</div><button class="modal-x" onclick="closeModal('new-client')">×</button></div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="fgroup"><label>First Name</label><input type="text" id="nc-first" placeholder="Jane"></div>
+        <div class="fgroup"><label>Last Name</label><input type="text" id="nc-last" placeholder="Smith"></div>
+      </div>
+      <div class="fgroup"><label>Email</label><input type="email" id="nc-email" placeholder="jane@example.com"></div>
+      <div class="fgroup"><label>Phone</label><input type="tel" id="nc-phone" placeholder="+44 7700 000000"></div>
+      <div class="fgroup"><label>Company (optional)</label><input type="text" id="nc-company" placeholder="Smith Co."></div>
+      <div class="fgroup"><label>Tags (comma separated)</label><input type="text" id="nc-tags" placeholder="e.g. Branding, Returning client"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('new-client')">Cancel</button>
+      <button class="btn btn-dark" onclick="createClient()">Add Client</button>
+    </div>
+  </div>
+</div>
+
+<!-- New Invoice -->
+<div id="modal-new-invoice" class="modal-overlay">
+  <div class="modal wide">
+    <div class="modal-hdr"><div class="modal-title">Create Invoice</div><button class="modal-x" onclick="closeModal('new-invoice')">×</button></div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="fgroup"><label>Client</label><select id="ni-client"><option value="">Select client…</option></select></div>
+        <div class="fgroup"><label>Project</label><select id="ni-project"><option value="">Select project…</option></select></div>
+      </div>
+      <div class="form-row">
+        <div class="fgroup"><label>Invoice Number</label><input type="text" id="ni-number" placeholder="INV-001"></div>
+        <div class="fgroup"><label>Due Date</label><input type="date" id="ni-due"></div>
+      </div>
+      <div class="fgroup"><label>Notes / Payment Terms</label><textarea id="ni-notes" placeholder="e.g. Payment due within 14 days of invoice date."></textarea></div>
+      <div style="margin-bottom:14px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+          <div style="font-weight:600;font-size:13px;">Line Items</div>
+        </div>
+        <table style="width:100%;border-collapse:collapse;">
+          <thead><tr style="border-bottom:1.5px solid var(--border);">
+            <th style="text-align:left;padding:0 0 8px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text-mid);width:50%;">Description</th>
+            <th style="text-align:left;padding:0 8px 8px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text-mid);">Rate (£)</th>
+            <th style="text-align:left;padding:0 8px 8px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text-mid);">Qty</th>
+            <th style="text-align:right;padding:0 0 8px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text-mid);">Total</th>
+            <th style="width:30px;"></th>
+          </tr></thead>
+          <tbody id="line-items-body"></tbody>
+        </table>
+        <button class="btn btn-ghost btn-sm" onclick="addLineItem()" style="color:var(--accent);margin-top:8px;">+ Add line item</button>
+      </div>
+      <div style="text-align:right;border-top:2px solid var(--ink);padding-top:12px;">
+        <span style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text-mid);margin-right:16px;">Total</span>
+        <span style="font-family:'DM Serif Display',serif;font-size:22px;" id="invoice-total">£0.00</span>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('new-invoice')">Cancel</button>
+      <button class="btn btn-outline" onclick="createInvoice('draft')">Save Draft</button>
+      <button class="btn btn-dark" onclick="createInvoice('sent')">Create & Send</button>
+    </div>
+  </div>
+</div>
+
+<!-- Share Invoice Link -->
+<div id="modal-share-invoice" class="modal-overlay">
+  <div class="modal narrow">
+    <div class="modal-hdr"><div class="modal-title">Share Invoice Link</div><button class="modal-x" onclick="closeModal('share-invoice')">×</button></div>
+    <div class="modal-body">
+      <div style="font-size:13.5px;color:var(--text-mid);margin-bottom:18px;line-height:1.65;">
+        Share this link so your client can view and pay this invoice without logging in.
+      </div>
+      <div class="fgroup"><label>Select Invoice</label>
+        <select id="share-invoice-select" onchange="updateShareLink()">
+          <option value="">Choose invoice…</option>
+        </select>
+      </div>
+      <div class="fgroup">
+        <label>Share Link</label>
+        <div class="share-link-row">
+          <input class="share-link-input" id="share-link-input" readonly placeholder="Select an invoice above">
+          <button class="btn btn-outline btn-sm" onclick="copyShareLink()">📋 Copy</button>
+        </div>
+      </div>
+      <div class="auth-info">🔒 Anyone with this link can view this invoice, but cannot access any other client data.</div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('share-invoice')">Done</button>
+      <button class="btn btn-dark" onclick="emailShareLink()">Send via Email</button>
+    </div>
+  </div>
+</div>
+
+<!-- New Contract -->
+<div id="modal-new-contract" class="modal-overlay">
+  <div class="modal wide">
+    <div class="modal-hdr"><div class="modal-title">Send Contract</div><button class="modal-x" onclick="closeModal('new-contract')">×</button></div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="fgroup"><label>Client</label><select id="nc2-client"><option value="">Select client…</option></select></div>
+        <div class="fgroup"><label>Project</label><select id="nc2-project"><option value="">Select project…</option></select></div>
+      </div>
+      <div class="fgroup"><label>Contract Title</label><input type="text" id="nc2-title" placeholder="e.g. Photography Services Agreement"></div>
+      <div class="fgroup"><label>Template</label>
+        <select id="nc2-template" onchange="loadContractTemplate()">
+          <option value="">Blank contract</option>
+          <option value="photography">Photography Services Agreement</option>
+          <option value="freelancer">Freelancer / Services Agreement</option>
+          <option value="branding">Branding & Design Agreement</option>
+        </select>
+      </div>
+      <div class="fgroup"><label>Contract Content</label><textarea id="nc2-content" style="min-height:200px;" placeholder="Enter contract terms…"></textarea></div>
+      <div class="fgroup"><label>Signature Required</label>
+        <select id="nc2-sig">
+          <option value="client">Client signature only</option>
+          <option value="both">Both parties</option>
+          <option value="none">No signature required</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('new-contract')">Cancel</button>
+      <button class="btn btn-dark" onclick="createContract()">Send Contract</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Note -->
+<div id="modal-add-note" class="modal-overlay">
+  <div class="modal narrow">
+    <div class="modal-hdr"><div class="modal-title">Add Note or Link</div><button class="modal-x" onclick="closeModal('add-note')">×</button></div>
+    <div class="modal-body">
+      <div class="fgroup"><label>Type</label>
+        <select id="note-type" onchange="toggleNoteType()">
+          <option value="note">Note</option>
+          <option value="link">Link / URL</option>
+        </select>
+      </div>
+      <div class="fgroup"><label>Title</label><input type="text" id="note-title" placeholder="e.g. Brief notes / Moodboard"></div>
+      <div class="fgroup" id="note-content-group"><label>Content</label><textarea id="note-content" placeholder="Write your note…"></textarea></div>
+      <div class="fgroup" id="note-url-group" style="display:none;"><label>URL</label><input type="url" id="note-url" placeholder="https://"></div>
+      <div class="fgroup"><label>Project</label>
+        <select id="note-project"><option value="">General (no project)</option></select>
+      </div>
+      <div class="fgroup"><label>Visible to client in portal?</label>
+        <select id="note-visible">
+          <option value="false">No — private</option>
+          <option value="true">Yes — show in client portal</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('add-note')">Cancel</button>
+      <button class="btn btn-dark" onclick="createNote()">Save Note</button>
+    </div>
+  </div>
+</div>
+
+<!-- New Booking -->
+<div id="modal-new-booking" class="modal-overlay">
+  <div class="modal narrow">
+    <div class="modal-hdr"><div class="modal-title">New Booking</div><button class="modal-x" onclick="closeModal('new-booking')">×</button></div>
+    <div class="modal-body">
+      <div class="fgroup"><label>Title</label><input type="text" id="nb-title" placeholder="e.g. Discovery Call"></div>
+      <div class="fgroup"><label>Client</label><select id="nb-client"><option value="">Select client…</option></select></div>
+      <div class="fgroup"><label>Project (optional)</label><select id="nb-project"><option value="">No project</option></select></div>
+      <div class="form-row">
+        <div class="fgroup"><label>Date</label><input type="date" id="nb-date"></div>
+        <div class="fgroup"><label>Start Time</label><input type="time" id="nb-start" value="10:00"></div>
+      </div>
+      <div class="form-row">
+        <div class="fgroup"><label>End Time</label><input type="time" id="nb-end" value="11:00"></div>
+        <div class="fgroup"><label>Location</label><input type="text" id="nb-location" placeholder="e.g. Zoom / Studio"></div>
+      </div>
+      <div class="fgroup"><label>Notes</label><textarea id="nb-notes" placeholder="What to bring, agenda, etc."></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('new-booking')">Cancel</button>
+      <button class="btn btn-dark" onclick="createBooking()">Create Booking</button>
+    </div>
+  </div>
+</div>
+
+<!-- Time Project Modal -->
+<div id="modal-time-project-modal" class="modal-overlay">
+  <div class="modal narrow">
+    <div class="modal-hdr"><div class="modal-title" id="tp-modal-title">New Time Project</div><button class="modal-x" onclick="closeModal('time-project-modal')">×</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="tp-edit-id">
+      <input type="hidden" id="tp-linked-project">
+      <div class="fgroup"><label>Project Name</label><input type="text" id="tp-name" placeholder="e.g. Acme Corp — Branding"></div>
+      <div class="form-row">
+        <div class="fgroup"><label>Client</label><input type="text" id="tp-client" placeholder="e.g. Acme Corp"></div>
+        <div class="fgroup"><label>Hourly Rate (£)</label><input type="number" id="tp-rate" placeholder="0.00" step="0.01"></div>
+      </div>
+      <div class="form-row">
+        <div class="fgroup"><label>Budget Type</label>
+          <select id="tp-budget-type" onchange="toggleTimeBudgetInput()">
+            <option value="none">No budget</option>
+            <option value="hours">Hours budget</option>
+            <option value="money">Money budget (£)</option>
+          </select>
+        </div>
+        <div class="fgroup" id="tp-budget-group" style="display:none;">
+          <label>Budget Amount</label>
+          <input type="number" id="tp-budget" placeholder="0">
+        </div>
+      </div>
+      <div class="fgroup"><label>Link to Studio Project (optional)</label>
+        <select id="tp-studio-project-select" onchange="document.getElementById('tp-linked-project').value=this.value">
+          <option value="">No linked project</option>
+        </select>
+      </div>
+      <div class="fgroup"><label>Notes</label><textarea id="tp-notes" placeholder="Client info, brief, rate notes…"></textarea></div>
+      <div class="fgroup"><label>Colour</label>
+        <div id="tp-color-swatches" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('time-project-modal')">Cancel</button>
+      <button class="btn btn-dark" onclick="saveTimeProject()">Save Project</button>
+    </div>
+  </div>
+</div>
+
+<!-- Time Entry Modal -->
+<div id="modal-time-entry-modal" class="modal-overlay">
+  <div class="modal narrow">
+    <div class="modal-hdr"><div class="modal-title">Add Time Entry</div><button class="modal-x" onclick="closeModal('time-entry-modal')">×</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="te-edit-id">
+      <div class="fgroup"><label>Project</label><select id="te-project"><option value="">Select project…</option></select></div>
+      <div class="fgroup"><label>Description</label><input type="text" id="te-desc" placeholder="What did you work on?"></div>
+      <div class="form-row">
+        <div class="fgroup"><label>Date</label><input type="date" id="te-date"></div>
+        <div class="fgroup"><label>Start Time</label><input type="time" id="te-start"></div>
+        <div class="fgroup"><label>End Time</label><input type="time" id="te-end"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('time-entry-modal')">Cancel</button>
+      <button class="btn btn-dark" onclick="saveTimeEntry()">Save Entry</button>
+    </div>
+  </div>
+</div>
+
+<!-- Time Invoice Modal -->
+<div id="modal-time-invoice-modal" class="modal-overlay">
+  <div class="modal narrow">
+    <div class="modal-hdr"><div class="modal-title">Create Invoice</div><button class="modal-x" onclick="closeModal('time-invoice-modal')">×</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="ti-tp-id">
+      <div style="background:var(--surface2);border-radius:var(--r);padding:14px;margin-bottom:16px;">
+        <div style="font-weight:600;font-size:14px;color:var(--text);margin-bottom:4px;" id="ti-project-name"></div>
+        <div style="font-size:12px;color:var(--text-mid);" id="ti-entries-count"></div>
+        <div style="display:flex;justify-content:space-between;margin-top:10px;padding-top:10px;border-top:1px solid var(--border);">
+          <div style="font-size:13px;color:var(--text-mid);">Subtotal</div>
+          <div style="font-weight:600;" id="ti-subtotal"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:4px;">
+          <div style="font-size:13px;color:var(--text-mid);">Total (inc. VAT)</div>
+          <div style="font-weight:600;color:var(--accent);" id="ti-total"></div>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="fgroup"><label>Invoice Number</label><input type="text" id="ti-inv-number"></div>
+        <div class="fgroup"><label>Due Date</label><input type="date" id="ti-due-date"></div>
+      </div>
+      <div class="fgroup"><label>Tax Rate (%)</label><input type="number" id="ti-tax" value="20" min="0" max="100"></div>
+      <div class="fgroup"><label>Notes</label><textarea id="ti-notes" placeholder="Payment terms…"></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('time-invoice-modal')">Cancel</button>
+      <button class="btn btn-dark" onclick="createTimeInvoice()">Create Invoice</button>
+    </div>
+  </div>
+</div>
+
+<style>
+@keyframes timerPulse {
+  0%, 100% { box-shadow: 0 0 0 0 currentColor; opacity: 1; }
+  50% { box-shadow: 0 0 0 4px transparent; opacity: 0.7; }
+}
+.row-actions { opacity: 0; }
+div:hover > .row-actions { opacity: 1; }
+</style>
+
+<div id="toast" class="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/client.js"></script>
+<script src="js/app.v7.js"></script>
+<script src="js/time.js"></script>
+</body>
+</html>
