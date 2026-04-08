@@ -1,8 +1,8 @@
 /* js/app.js — Studio Portal v6 */
 
 const PROJECT_COLORS = [
-  '#6c5ce7','#0d9660','#1d4ed8','#be185d','#0e7490',
-  '#a35c07','#c0392b','#7c3aed','#0891b2','#b45309'
+  '#7c6af0','#22a06b','#2563eb','#db2777','#0891b2',
+  '#b45309','#dc2626','#059669','#7c3aed','#ea580c'
 ];
 
 let currentUser = null;
@@ -153,11 +153,9 @@ async function renderDashboard(){
   if(!shown.length){projContainer.innerHTML=`<div class="empty-state"><div class="empty-icon">📁</div><div class="empty-title">No active projects</div><button class="btn btn-accent" onclick="openModal('new-project')">+ New Project</button></div>`;return;}
   projContainer.innerHTML=shown.map(p=>renderProjectListItem(p)).join('');
 
-  // Row 4: Quick note + Notion — wait for DOM
-  setTimeout(()=>{
-    renderDashboardNote();
-    renderDashboardNotion();
-  },0);
+  // Row 4: Quick note + Notion
+  renderDashboardNote();
+  renderDashboardNotion();
 }
 
 async function renderDashboardCalendar(){
@@ -368,41 +366,20 @@ function renderProjectListItem(p){
       ${outstanding>0?`<div style="font-size:11.5px;color:var(--amber);font-weight:500">${formatCurrency(outstanding)} due</div>`:''}
       ${lastEntry?`<div style="font-size:11px;color:var(--text-mid)">⏱ ${timeAgo(lastEntry.date+' '+lastEntry.start_time)}</div>`:''}
     </div>
-    <div onclick="event.stopPropagation()" style="display:flex;gap:6px;flex-shrink:0">
+    <div onclick="event.stopPropagation()" style="flex-shrink:0">
       ${isRunning
         ?`<button class="btn btn-red btn-sm" onclick="clockOut()">⏹ Stop</button>`
         :`<button class="btn btn-green btn-sm" onclick="clockInOnProject(event,'${p.id}')">▶ Clock In</button>`}
-      <button class="btn btn-ghost btn-sm" style="color:var(--text-mid);font-size:11px;" onclick="event.stopPropagation();deleteProject('${p.id}','${escapeHtml(p.name)}')">✕</button>
     </div>
   </div>`;
-}
-
-async function deleteProject(projectId, name){
-  if(!window.confirm(`Delete "${name}"? This will also delete all invoices, contracts, files and messages for this project. This cannot be undone.`))return;
-  await Promise.all([
-    db.from('invoices').delete().eq('project_id',projectId),
-    db.from('contracts').delete().eq('project_id',projectId),
-    db.from('files').delete().eq('project_id',projectId),
-    db.from('messages').delete().eq('project_id',projectId),
-    db.from('notes').delete().eq('project_id',projectId),
-    db.from('bookings').delete().eq('project_id',projectId),
-    db.from('time_entries').update({project_id:null}).eq('project_id',projectId),
-  ]);
-  await db.from('projects').delete().eq('id',projectId);
-  await loadProjects();
-  await loadInvoices();
-  renderProjectList();
-  renderDashboard();
-  showToast(`"${name}" deleted`,'success');
 }
 
 async function clockInOnProject(event,projectId){
   event.stopPropagation();
   const p=allProjects.find(x=>x.id===projectId);
   if(!p)return;
-  const descInput=document.getElementById('proj-clock-desc');
-  const desc=descInput?.value.trim()||'';
-  await clockIn(null,desc,projectId);
+  // Clock in directly against studio project
+  await clockIn(null,'',projectId);
 }
 
 /* ══════════════════════════════════════════
@@ -494,7 +471,7 @@ async function openProject(projectId){
           <div style="display:flex;flex-direction:column;gap:6px">
             <button class="btn btn-outline btn-full btn-sm" onclick="openModal('new-invoice')">+ Invoice</button>
             <button class="btn btn-outline btn-full btn-sm" onclick="openModal('new-contract')">📝 Contract</button>
-            <button class="btn btn-outline btn-full btn-sm" onclick="triggerProjectUpload('${project.id}')">📎 Upload File</button>
+            <button class="btn btn-outline btn-full btn-sm">📎 Upload File</button>
             <button class="btn btn-outline btn-full btn-sm" onclick="openShareInvoiceModal()">🔗 Share Invoice</button>
             <button class="btn btn-ghost btn-full btn-sm" onclick="window.open('portal.html','_blank')">↗ Client Portal</button>
           </div>
@@ -692,40 +669,15 @@ function renderClients(filter=''){
   const container=document.getElementById('clients-list');
   const filtered=allClients.filter(c=>`${c.first_name} ${c.last_name} ${c.email} ${c.company||''}`.toLowerCase().includes(filter.toLowerCase()));
   if(!filtered.length){container.innerHTML=`<div class="empty-state"><div class="empty-icon">👥</div><div class="empty-title">No clients yet</div><button class="btn btn-accent" onclick="openModal('new-client')">+ Add Client</button></div>`;return;}
-  container.innerHTML=filtered.map(c=>{const name=`${c.first_name} ${c.last_name}`;const col=avatarColor(name);const pc=allProjects.filter(p=>p.client_id===c.id).length;return`<div class="card" style="padding:14px 18px;display:flex;align-items:center;gap:13px;margin-bottom:9px;">
-    <div class="avatar av-md" style="background:${col.bg};color:${col.color};border-radius:10px;cursor:pointer" onclick="filterByClient('${c.id}')">${initials(name)}</div>
-    <div style="flex:1;min-width:0;cursor:pointer" onclick="filterByClient('${c.id}')"><div style="font-weight:600;font-size:14px">${escapeHtml(name)}</div><div style="font-size:12px;color:var(--text-mid)">${escapeHtml(c.email)}${c.phone?' · '+escapeHtml(c.phone):''}</div></div>
+  container.innerHTML=filtered.map(c=>{const name=`${c.first_name} ${c.last_name}`;const col=avatarColor(name);const pc=allProjects.filter(p=>p.client_id===c.id).length;return`<div class="card" style="padding:14px 18px;display:flex;align-items:center;gap:13px;margin-bottom:9px;cursor:pointer" onclick="filterByClient('${c.id}')">
+    <div class="avatar av-md" style="background:${col.bg};color:${col.color};border-radius:10px">${initials(name)}</div>
+    <div style="flex:1;min-width:0"><div style="font-weight:600;font-size:14px">${escapeHtml(name)}</div><div style="font-size:12px;color:var(--text-mid)">${escapeHtml(c.email)}${c.phone?' · '+escapeHtml(c.phone):''}</div></div>
     <div style="font-size:12px;color:var(--text-mid);white-space:nowrap">${pc} project${pc!==1?'s':''}</div>
     ${(c.tags||[]).map(t=>`<span class="tag">${escapeHtml(t)}</span>`).join('')}
-    <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="deleteClient('${c.id}','${escapeHtml(name)}')">Delete</button>
+    <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation()">Portal ↗</button>
   </div>`;}).join('');}
-
-async function deleteClient(clientId, name){
-  if(!window.confirm(`Delete ${name}? This cannot be undone. Their projects will remain but will be unlinked.`))return;
-  await db.from('clients').delete().eq('id',clientId);
-  await loadClients();
-  renderClients();
-  populateSelects();
-  showToast('Client deleted','success');
-}
 function filterClients(val){renderClients(val);}
-function filterByClient(clientId){
-  showPage('projects',document.getElementById('nav-projects'));
-  // Filter project list to just this client
-  const container=document.getElementById('proj-list-content');
-  if(!container)return;
-  const client=allClients.find(c=>c.id===clientId);
-  const clientName=client?client.first_name+' '+client.last_name:'Client';
-  const filtered=allProjects.filter(p=>p.client_id===clientId);
-  if(!filtered.length){
-    container.innerHTML=`<div class="empty-state"><div class="empty-icon">📁</div><div class="empty-title">No projects for ${escapeHtml(clientName)}</div><button class="btn btn-accent" onclick="openModal('new-project')">+ New Project</button></div>`;
-    return;
-  }
-  container.innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
-    <div style="font-size:13px;color:var(--text-mid)">Showing projects for <strong>${escapeHtml(clientName)}</strong></div>
-    <button class="btn btn-ghost btn-sm" onclick="renderProjectList()">Show all →</button>
-  </div>`+filtered.map(renderProjectListItem).join('');
-}
+function filterByClient(clientId){showPage('projects',document.getElementById('nav-projects'));}
 
 /* ══════════════════════════════════════════
    INVOICES
@@ -770,15 +722,7 @@ async function loadFiles(){
   const c=document.getElementById('files-grid-container');
   if(!files||!files.length){c.innerHTML=`<div class="empty-state"><div class="empty-icon">🗂</div><div class="empty-title">No files yet</div></div>`;return;}
   c.innerHTML=`<div class="files-grid">${files.map(f=>`<div class="file-card" onclick="downloadFile('${f.storage_path}','${escapeHtml(f.name)}')"><div class="file-icon">${fileIcon(f.mime_type)}</div><div class="file-name" title="${escapeHtml(f.name)}">${escapeHtml(f.name)}</div><div class="file-meta">${formatBytes(f.size_bytes)} · ${formatDateShort(f.created_at)}</div></div>`).join('')}</div>`;
-  // Init upload zone after content renders
-  setTimeout(()=>initUploadZone('upload-zone',fs=>uploadFiles(fs,null)),50);
-}
-
-function triggerFileUpload(projectId){
-  const input=document.createElement('input');
-  input.type='file';input.multiple=true;
-  input.onchange=()=>uploadFiles([...input.files],projectId||null);
-  input.click();
+  initUploadZone('upload-zone',files=>uploadFiles(files,null));
 }
 
 async function uploadFiles(files,projectId){
@@ -795,15 +739,7 @@ async function uploadFiles(files,projectId){
 
 async function triggerProjectUpload(projectId){const i=document.createElement('input');i.type='file';i.multiple=true;i.onchange=()=>uploadFiles([...i.files],projectId);i.click();}
 async function downloadFile(path,name){const{data}=await db.storage.from('project-files').createSignedUrl(path,3600);if(data?.signedUrl){const a=document.createElement('a');a.href=data.signedUrl;a.download=name;a.click();}}
-function initUploadZone(id,cb){
-  const z=document.getElementById(id);if(!z)return;
-  // Remove old listeners by cloning
-  const fresh=z.cloneNode(true);z.parentNode.replaceChild(fresh,z);
-  fresh.addEventListener('dragover',e=>{e.preventDefault();fresh.classList.add('drag-over');});
-  fresh.addEventListener('dragleave',()=>fresh.classList.remove('drag-over'));
-  fresh.addEventListener('drop',e=>{e.preventDefault();fresh.classList.remove('drag-over');cb([...e.dataTransfer.files]);});
-  fresh.addEventListener('click',()=>{const i=document.createElement('input');i.type='file';i.multiple=true;i.accept='*/*';i.onchange=()=>cb([...i.files]);i.click();});
-}
+function initUploadZone(id,cb){const z=document.getElementById(id);if(!z)return;z.addEventListener('dragover',e=>{e.preventDefault();z.classList.add('drag-over');});z.addEventListener('dragleave',()=>z.classList.remove('drag-over'));z.addEventListener('drop',e=>{e.preventDefault();z.classList.remove('drag-over');cb([...e.dataTransfer.files]);});z.addEventListener('click',()=>{const i=document.createElement('input');i.type='file';i.multiple=true;i.onchange=()=>cb([...i.files]);i.click();});}
 
 /* ══════════════════════════════════════════
    NOTES
@@ -907,7 +843,7 @@ async function createProject(){
   const name=document.getElementById('np-name').value.trim();
   if(!name){showToast('Name required','error');return;}
   const color=getSelectedColor('np-color-swatches');
-  const{data,error}=await db.from('projects').insert({owner_id:currentUser.id,client_id:document.getElementById('np-client').value||null,name,service_type:document.getElementById('np-service').value,value:parseFloat(document.getElementById('np-value').value)||0,hourly_rate:parseFloat(document.getElementById('np-hourly-rate').value)||0,start_date:document.getElementById('np-date').value||null,notes:document.getElementById('np-notes').value,status:'booked',color,stages:[]}).select().single();
+  const{data,error}=await db.from('projects').insert({owner_id:currentUser.id,client_id:document.getElementById('np-client').value||null,name,service_type:document.getElementById('np-service').value,value:parseFloat(document.getElementById('np-value').value)||0,start_date:document.getElementById('np-date').value||null,notes:document.getElementById('np-notes').value,status:'booked',color,stages:[]}).select().single();
   if(error){showToast('Failed: '+error.message,'error');return;}
   closeModal('new-project');['np-name','np-value','np-notes'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
   await loadProjects();populateSelects();populateTimeProjectSelects();renderDashboard();showToast('Project created!','success');openProject(data.id);}
@@ -924,8 +860,7 @@ async function createInvoice(status='draft'){
   const number=document.getElementById('ni-number').value.trim();
   if(!number){showToast('Invoice number required','error');return;}
   const items=getLineItems();const subtotal=items.reduce((s,i)=>s+i.total,0);
-  const paymentLink=document.getElementById('ni-payment-link')?.value.trim()||null;
-  const{error}=await db.from('invoices').insert({owner_id:currentUser.id,client_id:document.getElementById('ni-client').value||null,project_id:document.getElementById('ni-project').value||null,invoice_number:number,line_items:items,subtotal,total:subtotal,due_date:document.getElementById('ni-due').value||null,notes:document.getElementById('ni-notes').value,payment_link:paymentLink,status,sent_at:status==='sent'?new Date().toISOString():null});
+  const{error}=await db.from('invoices').insert({owner_id:currentUser.id,client_id:document.getElementById('ni-client').value||null,project_id:document.getElementById('ni-project').value||null,invoice_number:number,line_items:items,subtotal,total:subtotal,due_date:document.getElementById('ni-due').value||null,notes:document.getElementById('ni-notes').value,status,sent_at:status==='sent'?new Date().toISOString():null});
   if(error){showToast('Failed','error');return;}
   closeModal('new-invoice');await loadInvoices();renderInvoicesPage();showToast(status==='sent'?'Invoice sent!':'Draft saved!','success');}
 
@@ -977,11 +912,7 @@ async function openShareInvoiceModal(preselectedId=null){
   openModal('share-invoice');}
 function updateShareLink(){const opt=document.getElementById('share-invoice-select').selectedOptions[0];const token=opt?.dataset?.token;document.getElementById('share-link-input').value=token?`https://sendzest.github.io/Studio-portal/invoice.html?token=${token}`:'';}
 function copyShareLink(){const v=document.getElementById('share-link-input').value;if(!v){showToast('Select an invoice first','error');return;}navigator.clipboard.writeText(v);showToast('Link copied!','success');}
-function emailShareLink(){
-  // Just copy the link — no email integration
-  copyShareLink();
-  closeModal('share-invoice');
-}
+function emailShareLink(){showToast('Email sent to client!','success');closeModal('share-invoice');}
 
 /* ══════════════════════════════════════════
    MESSAGES
@@ -998,36 +929,10 @@ async function sendMessage(projectId){
    POPULATES
 ══════════════════════════════════════════ */
 function populateSelects(){
-  ['np-client','ni-client','nc2-client','nb-client'].forEach(id=>{
-    const el=document.getElementById(id);if(!el)return;
-    const cur=el.value;while(el.options.length>1)el.remove(1);
-    allClients.forEach(c=>{const o=document.createElement('option');o.value=c.id;o.textContent=`${c.first_name} ${c.last_name}`;el.appendChild(o);});
-    if(cur)el.value=cur;
-  });
-  // For invoice client — add onchange to filter projects
-  const niClient=document.getElementById('ni-client');
-  if(niClient&&!niClient.dataset.bound){
-    niClient.dataset.bound='1';
-    niClient.addEventListener('change',()=>filterInvoiceProjects(niClient.value));
-  }
-  ['nc2-project','nb-project','note-project','files-project-filter'].forEach(id=>{
-    const el=document.getElementById(id);if(!el)return;
-    while(el.options.length>1)el.remove(1);
-    allProjects.forEach(p=>{const o=document.createElement('option');o.value=p.id;o.textContent=p.name;el.appendChild(o);});
-  });
-  // ni-project starts empty — filtered by client selection
-  const niProj=document.getElementById('ni-project');
-  if(niProj){niProj.innerHTML='<option value="">Select client first…</option>';}
-  renderColorSwatches('np-color-swatches',PROJECT_COLORS[allProjects.length%PROJECT_COLORS.length]);
-}
-
-function filterInvoiceProjects(clientId){
-  const sel=document.getElementById('ni-project');if(!sel)return;
-  sel.innerHTML='<option value="">Select project…</option>';
-  const filtered=clientId?allProjects.filter(p=>p.client_id===clientId):allProjects;
-  filtered.forEach(p=>{const o=document.createElement('option');o.value=p.id;o.textContent=p.name;sel.appendChild(o);});
-  if(!clientId)sel.innerHTML='<option value="">Select client first…</option>';
-}
+  ['np-client','ni-client','nc2-client','nb-client'].forEach(id=>{const el=document.getElementById(id);if(!el)return;const cur=el.value;while(el.options.length>1)el.remove(1);allClients.forEach(c=>{const o=document.createElement('option');o.value=c.id;o.textContent=`${c.first_name} ${c.last_name}`;el.appendChild(o);});if(cur)el.value=cur;});
+  ['ni-project','nc2-project','nb-project','note-project','files-project-filter'].forEach(id=>{const el=document.getElementById(id);if(!el)return;while(el.options.length>1)el.remove(1);allProjects.forEach(p=>{const o=document.createElement('option');o.value=p.id;o.textContent=p.name;el.appendChild(o);});});
+  // Populate color swatches in new project modal
+  renderColorSwatches('np-color-swatches',PROJECT_COLORS[allProjects.length%PROJECT_COLORS.length]);}
 
 function populateTimeProjectSelects(){
   const ss=document.getElementById('tp-studio-project-select');

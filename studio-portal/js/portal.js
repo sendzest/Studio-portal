@@ -45,7 +45,7 @@ async function sendPortalMagicLink() {
 
   const { error } = await db.auth.signInWithOtp({
     email,
-    options: { emailRedirectTo: 'https://sendzest.github.io/Studio-portal/portal.html' }
+    options: { emailRedirectTo: 'https://sendzest.github.io/studio-portal/portal.html' }
   });
 
   if (error) { showPortalError(error.message); return; }

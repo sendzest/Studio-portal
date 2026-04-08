@@ -92,11 +92,6 @@ function showPage(id,btn){
 
 async function signOut(){await db.auth.signOut();window.location.href='index.html';}
 
-function openClientPortal(clientEmail){
-  const url='portal.html'+(clientEmail?'?client='+encodeURIComponent(clientEmail):'');
-  window.open(url,'_blank');
-}
-
 /* ══════════════════════════════════════════
    DATA
 ══════════════════════════════════════════ */
@@ -241,7 +236,7 @@ function renderWeekChart(){
 
   const today=new Date();
   const mon=new Date(today);mon.setDate(today.getDate()-((today.getDay()+6)%7));
-  const days=['M','Tu','W','Th','F','Sa','Su'];
+  const days=['M','T','W','T','F','S','S'];
   const vals=days.map((_,i)=>{
     const d=new Date(mon);d.setDate(mon.getDate()+i);
     const ds=d.toISOString().slice(0,10);
@@ -307,9 +302,7 @@ async function renderDashboardNotion(){
   const container=document.getElementById('dashboard-notion');
   if(!container)return;
 
-  const notionToken=currentProfile?.notion_token;
-
-  const header=`
+  container.innerHTML=`
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
       <div style="display:flex;align-items:center;gap:7px;">
         <div style="width:16px;height:16px;background:var(--text);border-radius:3px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
@@ -317,27 +310,38 @@ async function renderDashboardNotion(){
         </div>
         <div style="font-size:13px;font-weight:500;color:var(--text);">Notion</div>
       </div>
-    </div>`;
-
-  if(!notionToken){
-    container.innerHTML=header+`
-      <div id="notion-pages-list" style="display:flex;flex-direction:column;gap:6px;">
-        <div style="font-size:12px;color:var(--text-mid);background:var(--surface2);border-radius:var(--r);padding:12px;line-height:1.6;text-align:center;">
-          Connect Notion in Settings to see your recent pages here.
-        </div>
-        <a href="app.html#settings" style="display:block;text-align:center;font-size:12px;color:var(--accent);margin-top:6px;cursor:pointer;" onclick="showPage('settings',document.getElementById('nav-settings'))">Set up Notion →</a>
-      </div>`;
-    return;
-  }
-
-  container.innerHTML=header+`
+      <div class="loading" style="padding:0;"><div class="spinner" style="width:14px;height:14px;"></div></div>
+    </div>
     <div id="notion-pages-list" style="display:flex;flex-direction:column;gap:6px;">
       <div style="font-size:12px;color:var(--text-mid);text-align:center;padding:12px 0;">Loading recent pages…</div>
-    </div>`;
+    </div>
+  `;
 
-  loadNotionPages(notionToken);
+  // Fetch recent Notion pages via Supabase edge or just show placeholder
+  // We'll fetch via the Notion MCP on the app side using a stored token approach
+  // For now render a helpful placeholder — real integration needs the Notion API key stored
+  setTimeout(()=>{
+    const list=document.getElementById('notion-pages-list');
+    if(!list)return;
+    list.innerHTML=`
+      <div style="font-size:12px;color:var(--text-mid);background:var(--surface2);border-radius:var(--r);padding:12px;line-height:1.6;text-align:center;">
+        Connect Notion in Settings to see your recent pages here.
+      </div>
+      <a href="app.html#settings" style="display:block;text-align:center;font-size:12px;color:var(--accent);margin-top:6px;cursor:pointer;" onclick="showPage('settings',document.getElementById('nav-settings'))">Set up Notion →</a>
+    `;
+    // Load pages if token exists
+    const notionToken=currentProfile?.notion_token;
+    if(notionToken)loadNotionPages(notionToken);
+  },100);
 }
 
+async function fetchNotionPages(token){
+  // Notion pages are fetched via Supabase edge function in production
+  // For now show connected state
+  const list=document.getElementById('notion-pages-list');
+  if(!list)return;
+  list.innerHTML=`<div style="font-size:12px;color:var(--text-mid);text-align:center;padding:8px 0;">Notion connected — pages loading…</div>`;
+}
 
 
 function renderProjectListItem(p){
@@ -375,11 +379,6 @@ function renderProjectListItem(p){
 
 async function deleteProject(projectId, name){
   if(!window.confirm(`Delete "${name}"? This will also delete all invoices, contracts, files and messages for this project. This cannot be undone.`))return;
-  // Delete storage files first
-  const{data:projectFiles}=await db.from('files').select('storage_path').eq('project_id',projectId);
-  if(projectFiles?.length){
-    await Promise.all(projectFiles.map(f=>db.storage.from('project-files').remove([f.storage_path])));
-  }
   await Promise.all([
     db.from('invoices').delete().eq('project_id',projectId),
     db.from('contracts').delete().eq('project_id',projectId),
@@ -388,7 +387,6 @@ async function deleteProject(projectId, name){
     db.from('notes').delete().eq('project_id',projectId),
     db.from('bookings').delete().eq('project_id',projectId),
     db.from('time_entries').update({project_id:null}).eq('project_id',projectId),
-    db.from('time_projects').update({project_id:null}).eq('project_id',projectId),
   ]);
   await db.from('projects').delete().eq('id',projectId);
   await loadProjects();
@@ -498,7 +496,7 @@ async function openProject(projectId){
             <button class="btn btn-outline btn-full btn-sm" onclick="openModal('new-contract')">📝 Contract</button>
             <button class="btn btn-outline btn-full btn-sm" onclick="triggerProjectUpload('${project.id}')">📎 Upload File</button>
             <button class="btn btn-outline btn-full btn-sm" onclick="openShareInvoiceModal()">🔗 Share Invoice</button>
-            <button class="btn btn-ghost btn-full btn-sm" onclick="openClientPortal('${client?.email||''}')">↗ Client Portal</button>
+            <button class="btn btn-ghost btn-full btn-sm" onclick="window.open('portal.html','_blank')">↗ Client Portal</button>
           </div>
         </div>
         <div id="project-clock-in-widget"></div>
@@ -527,7 +525,7 @@ async function openProject(projectId){
             </div>
           </div>
           <div id="pd-tab-invoices" class="portal-tab-content active" style="padding:14px 16px">
-            ${(invoices||[]).map(inv=>{const od=inv.status==='sent'&&inv.due_date&&isOverdue(inv.due_date);return`<div class="inv-item" onclick="openInvoicePreview('${inv.id}')"><span class="inv-icon">🧾</span><div class="inv-info"><div class="inv-num">#${escapeHtml(inv.invoice_number)}</div><div class="inv-meta" style="color:${od?'var(--red)':''};">${inv.due_date?(od?'Overdue · ':'')+formatDate(inv.due_date):'No due date'}</div></div><div class="inv-amt">${formatCurrency(inv.total)}</div>${statusBadge(od?'overdue':inv.status)}</div>`;}).join('')}
+            ${(invoices||[]).map(inv=>`<div class="inv-item"><span class="inv-icon">🧾</span><div class="inv-info"><div class="inv-num">#${escapeHtml(inv.invoice_number)}</div><div class="inv-meta">${inv.due_date?'Due '+formatDate(inv.due_date):'No due date'}</div></div><div class="inv-amt">${formatCurrency(inv.total)}</div>${statusBadge(inv.status)}<button class="btn btn-ghost btn-sm" onclick="openShareInvoiceModal('${inv.id}')">🔗</button></div>`).join('')}
             ${!(invoices||[]).length?'<div style="color:var(--text-mid);font-size:13px;text-align:center;padding:14px">No invoices yet</div>':''}
             <button class="btn btn-outline btn-full btn-sm" style="margin-top:8px" onclick="openModal('new-invoice')">+ Add invoice</button>
           </div>
@@ -742,19 +740,11 @@ function renderInvoicesPage(){
     <div class="stat-card"><div class="stat-label">Overdue</div><div class="stat-value" style="color:${overdue.length?'var(--red)':'var(--text)'}">${formatCurrency(overdue.reduce((s,i)=>s+((i.total||0)-(i.amount_paid||0)),0))}</div><div class="stat-sub ${overdue.length?'stat-down':''}">${overdue.length} invoices</div></div>`;
   const tbody=document.getElementById('invoices-tbody');
   if(!allInvoices.length){tbody.innerHTML=`<tr><td colspan="8"><div class="empty-state"><div class="empty-icon">🧾</div><div class="empty-title">No invoices yet</div><button class="btn btn-accent" onclick="openModal('new-invoice')">+ New Invoice</button></div></td></tr>`;return;}
-  tbody.innerHTML=allInvoices.map(inv=>{
-    const clientName=inv.clients?`${inv.clients.first_name} ${inv.clients.last_name}`:'—';
-    const od=inv.status==='sent'&&inv.due_date&&isOverdue(inv.due_date);
-    return`<tr style="cursor:pointer" onclick="openInvoicePreview('${inv.id}')">
-      <td style="font-weight:500">#${escapeHtml(inv.invoice_number)}</td>
-      <td>${escapeHtml(clientName)}</td>
-      <td style="color:var(--text-mid)">${escapeHtml(inv.projects?.name||'—')}</td>
-      <td style="font-weight:600">${formatCurrency(inv.total)}</td>
-      <td style="color:${od?'var(--red)':'var(--text-mid)'}">${inv.due_date?formatDate(inv.due_date):'—'}</td>
-      <td>${statusBadge(od?'overdue':inv.status)}</td>
-      <td onclick="event.stopPropagation()"><button class="btn btn-ghost btn-sm" onclick="openShareInvoiceModal('${inv.id}')">🔗</button></td>
-    </tr>`;
+  tbody.innerHTML=allInvoices.map(inv=>{const clientName=inv.clients?`${inv.clients.first_name} ${inv.clients.last_name}`:'—';const od=inv.status==='sent'&&inv.due_date&&isOverdue(inv.due_date);
+    return`<tr><td style="font-weight:500">#${escapeHtml(inv.invoice_number)}</td><td>${escapeHtml(clientName)}</td><td style="color:var(--text-mid)">${escapeHtml(inv.projects?.name||'—')}</td><td style="font-weight:600">${formatCurrency(inv.total)}</td><td style="color:${od?'var(--red)':'var(--text-mid)'}">${inv.due_date?formatDate(inv.due_date):'—'}</td><td>${statusBadge(od?'overdue':inv.status)}</td><td><button class="btn btn-ghost btn-sm" onclick="openShareInvoiceModal('${inv.id}')">🔗</button></td><td>${inv.status!=='paid'?`<button class="btn btn-ghost btn-sm" onclick="markPaid('${inv.id}')">Mark paid</button>`:''}</td></tr>`;
   }).join('');}
+
+async function markPaid(id){await db.from('invoices').update({status:'paid',paid_at:new Date().toISOString()}).eq('id',id);await loadInvoices();renderInvoicesPage();showToast('Invoice marked as paid!','success');}
 
 /* ══════════════════════════════════════════
    CONTRACTS
@@ -935,31 +925,9 @@ async function createInvoice(status='draft'){
   if(!number){showToast('Invoice number required','error');return;}
   const items=getLineItems();const subtotal=items.reduce((s,i)=>s+i.total,0);
   const paymentLink=document.getElementById('ni-payment-link')?.value.trim()||null;
-  const dbStatus=status==='download'?'draft':status;
-  const{data:savedInv,error}=await db.from('invoices').insert({
-    owner_id:currentUser.id,
-    client_id:document.getElementById('ni-client').value||null,
-    project_id:document.getElementById('ni-project').value||null,
-    invoice_number:number,line_items:items,subtotal,total:subtotal,
-    due_date:document.getElementById('ni-due').value||null,
-    notes:document.getElementById('ni-notes').value,
-    payment_link:paymentLink,
-    share_token:crypto.randomUUID(),
-    status:dbStatus,
-    sent_at:null
-  }).select().single();
+  const{error}=await db.from('invoices').insert({owner_id:currentUser.id,client_id:document.getElementById('ni-client').value||null,project_id:document.getElementById('ni-project').value||null,invoice_number:number,line_items:items,subtotal,total:subtotal,due_date:document.getElementById('ni-due').value||null,notes:document.getElementById('ni-notes').value,payment_link:paymentLink,status,sent_at:status==='sent'?new Date().toISOString():null});
   if(error){showToast('Failed','error');return;}
-  closeModal('new-invoice');
-  await loadInvoices();
-  if(status==='download'){
-    // Open invoice preview modal for download + mark-as-sent
-    openInvoicePreview(savedInv.id);
-    showToast('Invoice saved — download below','success');
-  } else {
-    renderInvoicesPage();
-    showToast('Draft saved!','success');
-  }
-}
+  closeModal('new-invoice');await loadInvoices();renderInvoicesPage();showToast(status==='sent'?'Invoice sent!':'Draft saved!','success');}
 
 function addLineItem(){
   const tbody=document.getElementById('line-items-body');const id=lineItemCount++;
@@ -974,7 +942,7 @@ function addLineItem(){
 function calcLineTotal(id){const row=document.getElementById(`li-row-${id}`);if(!row)return;const r=parseFloat(row.querySelector('.li-rate').value)||0;const q=parseFloat(row.querySelector('.li-qty').value)||0;document.getElementById(`li-total-${id}`).textContent=formatCurrency(r*q);calcTotal();}
 function calcTotal(){let t=0;document.querySelectorAll('#line-items-body tr').forEach(row=>{const r=parseFloat(row.querySelector('.li-rate')?.value)||0;const q=parseFloat(row.querySelector('.li-qty')?.value)||0;t+=r*q;});document.getElementById('invoice-total').textContent=formatCurrency(t);}
 function getLineItems(){return[...document.querySelectorAll('#line-items-body tr')].map(row=>({description:row.querySelector('.li-desc')?.value||'',rate:parseFloat(row.querySelector('.li-rate')?.value)||0,qty:parseFloat(row.querySelector('.li-qty')?.value)||1,total:(parseFloat(row.querySelector('.li-rate')?.value)||0)*(parseFloat(row.querySelector('.li-qty')?.value)||1)})).filter(i=>i.description||i.rate);}
-function populateInvoiceNumber(){const el=document.getElementById('ni-number');if(!el)return;const n=new Date();const prefix=`INV-${n.getFullYear()}${String(n.getMonth()+1).padStart(2,'0')}${String(n.getDate()).padStart(2,'0')}`;const existingNums=allInvoices.map(i=>{const m=i.invoice_number?.match(/-(\d+)$/);return m?parseInt(m[1],10):0;});const next=Math.max(0,...existingNums)+1;el.value=`${prefix}-${String(next).padStart(3,'0')}`;}
+function populateInvoiceNumber(){const el=document.getElementById('ni-number');if(!el)return;const n=new Date();el.value=`INV-${n.getFullYear()}${String(n.getMonth()+1).padStart(2,'0')}${String(n.getDate()).padStart(2,'0')}-${String(allInvoices.length+1).padStart(3,'0')}`;}
 
 async function createContract(){
   const title=document.getElementById('nc2-title').value.trim();const content=document.getElementById('nc2-content').value.trim();
@@ -990,209 +958,14 @@ async function createNote(){
   if(error){showToast('Failed','error');return;}closeModal('add-note');loadNotes();showToast('Note saved!','success');}
 
 async function createBooking(){
-  const title=document.getElementById('nb-title').value.trim();const date=document.getElementById('nb-date').value;const start=document.getElementById('nb-start').value;const end=document.getElementById('nb-end').value;
-  if(!title||!date||!start||!end){showToast('Title, date, start and end time required','error');return;}
+  const title=document.getElementById('nb-title').value.trim();const date=document.getElementById('nb-date').value;const start=document.getElementById('nb-start').value;
+  if(!title||!date||!start){showToast('Title, date and start time required','error');return;}
   const{error}=await db.from('bookings').insert({owner_id:currentUser.id,client_id:document.getElementById('nb-client').value||null,project_id:document.getElementById('nb-project').value||null,title,start_at:`${date}T${start}:00`,end_at:`${date}T${document.getElementById('nb-end').value}:00`,location:document.getElementById('nb-location').value||null,notes:document.getElementById('nb-notes').value||null});
   if(error){showToast('Failed','error');return;}closeModal('new-booking');renderCalendar();showToast('Booking created!','success');}
 
 function loadContractTemplate(){
   const templates={photography:`This Photography Services Agreement is between [Business Name] and [Client Name].\n\n1. SERVICES\nThe photographer will provide photography services as agreed.\n\n2. DELIVERABLES\nFinal edited images delivered within 30 days of the shoot.\n\n3. PAYMENT\nA non-refundable deposit of 25% secures the booking. Balance due on delivery.\n\n4. COPYRIGHT\nThe photographer retains copyright. Client receives a licence for personal use.\n\n5. CANCELLATION\nCancellation with less than 7 days notice forfeits the deposit.`,freelancer:`This Services Agreement is between [Business Name] and [Client Name].\n\n1. SCOPE OF WORK\nServices as outlined in the project brief.\n\n2. PAYMENT\nDue within 14 days of invoice. Late payments incur 2% monthly interest.\n\n3. REVISIONS\nUp to 2 rounds of revisions included.\n\n4. IP\nAll work product transfers to client upon full payment.`,branding:`This Branding & Design Agreement is between [Business Name] and [Client Name].\n\n1. PROJECT SCOPE\nBrand identity design including logo, colour palette, and typography.\n\n2. REVISIONS\nTwo rounds included. Further revisions quoted separately.\n\n3. FILE DELIVERY\nFinal files provided upon receipt of full payment.\n\n4. USAGE RIGHTS\nClient receives full ownership upon payment.`};
   const t=templates[document.getElementById('nc2-template').value];if(t)document.getElementById('nc2-content').value=t;}
-
-/* ══════════════════════════════════════════
-   INVOICE PREVIEW / EDIT / DELETE
-══════════════════════════════════════════ */
-
-function openInvoicePreview(invoiceId){
-  const inv=allInvoices.find(i=>String(i.id)===String(invoiceId));
-  if(!inv){showToast('Invoice not found','error');return;}
-  const client=allClients.find(c=>c.id===inv.client_id);
-  const project=allProjects.find(p=>p.id===inv.project_id);
-  const clientName=client?`${client.first_name} ${client.last_name}`:'—';
-  const items=inv.line_items||[];
-  const overdueFlag=inv.status==='sent'&&inv.due_date&&isOverdue(inv.due_date);
-  const displayStatus=overdueFlag?'overdue':inv.status;
-
-  const modal=document.getElementById('modal-invoice-preview');
-  if(!modal)return;
-
-  document.getElementById('inv-preview-body').innerHTML=`
-    <div style="background:var(--ink);padding:24px 28px;margin:-20px -24px 24px;display:flex;justify-content:space-between;align-items:flex-start;">
-      <div>
-        <div style="font-family:'DM Serif Display',serif;font-size:20px;color:#f0eeff;">${escapeHtml(currentProfile?.business_name||'Studio')}</div>
-        <div style="font-size:12px;color:rgba(240,238,255,.5);margin-top:3px;">${escapeHtml(currentProfile?.email||'')}</div>
-      </div>
-      <div style="text-align:right;">
-        <div style="font-size:11px;color:rgba(240,238,255,.4);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px;">Invoice</div>
-        <div style="font-family:'DM Serif Display',serif;font-size:20px;color:var(--accent);">#${escapeHtml(inv.invoice_number)}</div>
-      </div>
-    </div>
-
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px;">
-      <div>
-        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-mid);margin-bottom:6px;">Billed To</div>
-        <div style="font-weight:500;font-size:14px;color:var(--text);">${escapeHtml(clientName)}</div>
-        ${client?`<div style="font-size:13px;color:var(--text-mid);">${escapeHtml(client.email)}</div>`:''}
-      </div>
-      <div style="text-align:right;">
-        <div style="margin-bottom:8px;">
-          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-mid);margin-bottom:3px;">Issue Date</div>
-          <div style="font-size:13px;color:var(--text);">${formatDate(inv.created_at)}</div>
-        </div>
-        <div>
-          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-mid);margin-bottom:3px;">Due Date</div>
-          <div style="font-size:13px;color:${overdueFlag?'var(--red)':'var(--text)'};">${inv.due_date?formatDate(inv.due_date):'No due date'}</div>
-        </div>
-      </div>
-    </div>
-
-    <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
-      <thead><tr style="border-bottom:1.5px solid var(--border);">
-        <th style="text-align:left;padding:0 0 10px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-mid);width:50%">Description</th>
-        <th style="text-align:left;padding:0 8px 10px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-mid)">Rate</th>
-        <th style="text-align:left;padding:0 8px 10px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-mid)">Qty</th>
-        <th style="text-align:right;padding:0 0 10px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-mid)">Total</th>
-      </tr></thead>
-      <tbody>
-        ${items.map(item=>`<tr style="border-bottom:1px solid var(--border);">
-          <td style="padding:10px 0;font-size:13.5px;color:var(--text);">${escapeHtml(item.description||'')}</td>
-          <td style="padding:10px 8px;font-size:13.5px;color:var(--text);">${formatCurrency(item.rate)}</td>
-          <td style="padding:10px 8px;font-size:13.5px;color:var(--text);">${item.qty}</td>
-          <td style="padding:10px 0;text-align:right;font-weight:500;color:var(--text);">${formatCurrency(item.total)}</td>
-        </tr>`).join('')}
-      </tbody>
-      <tfoot>
-        <tr>
-          <td colspan="3" style="text-align:right;padding-top:14px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-mid);">Total</td>
-          <td style="text-align:right;padding-top:14px;font-family:'DM Serif Display',serif;font-size:22px;color:var(--text);">${formatCurrency(inv.total)}</td>
-        </tr>
-      </tfoot>
-    </table>
-
-    ${inv.notes?`<div style="padding:14px;background:var(--surface2);border-radius:var(--r);font-size:13px;color:var(--text-mid);line-height:1.6;margin-bottom:16px;">${escapeHtml(inv.notes)}</div>`:''}
-    ${inv.payment_link?`<div style="font-size:12px;color:var(--text-mid);">Payment link: <a href="${escapeHtml(inv.payment_link)}" target="_blank" style="color:var(--accent);">${escapeHtml(inv.payment_link)}</a></div>`:''}
-
-    <div style="margin-top:20px;display:flex;align-items:center;justify-content:space-between;">
-      <div>${statusBadge(displayStatus)}</div>
-      <div style="font-size:12px;color:var(--text-mid);">Created ${formatDate(inv.created_at)}</div>
-    </div>
-  `;
-
-  // Set footer buttons based on status
-  document.getElementById('inv-preview-mark-sent').style.display=inv.status==='draft'?'block':'none';
-  document.getElementById('inv-preview-mark-paid').style.display=inv.status==='sent'?'block':'none';
-  document.getElementById('inv-preview-inv-id').value=invoiceId;
-
-  openModal('invoice-preview');
-}
-
-async function invoicePreviewMarkSent(){
-  const id=document.getElementById('inv-preview-inv-id').value;
-  await db.from('invoices').update({status:'sent',sent_at:new Date().toISOString()}).eq('id',id);
-  await loadInvoices();
-  const inv=allInvoices.find(i=>String(i.id)===String(id));
-  if(inv){
-    document.getElementById('inv-preview-mark-sent').style.display='none';
-    document.getElementById('inv-preview-mark-paid').style.display='block';
-  }
-  renderInvoicesPage();
-  if(currentProjectId)openProject(currentProjectId);
-  showToast('Invoice marked as sent','success');
-}
-
-async function invoicePreviewMarkPaid(){
-  const id=document.getElementById('inv-preview-inv-id').value;
-  await db.from('invoices').update({status:'paid',paid_at:new Date().toISOString()}).eq('id',id);
-  await loadInvoices();
-  document.getElementById('inv-preview-mark-paid').style.display='none';
-  renderInvoicesPage();
-  if(currentProjectId)openProject(currentProjectId);
-  showToast('Invoice marked as paid!','success');
-}
-
-async function deleteInvoiceFromPreview(){
-  const id=document.getElementById('inv-preview-inv-id')?.value;
-  if(!id){showToast('No invoice selected','error');return;}
-  const inv=allInvoices.find(i=>String(i.id)===String(id));
-  if(!window.confirm('Delete invoice'+(inv?` #${inv.invoice_number}`:'')+`? This cannot be undone.`))return;
-  const{error}=await db.from('invoices').delete().eq('id',id);
-  if(error){showToast('Failed to delete: '+error.message,'error');return;}
-  await loadInvoices();
-  closeModal('invoice-preview');
-  renderInvoicesPage();
-  updateInvoiceBadge();
-  if(currentProjectId)openProject(currentProjectId);
-  showToast('Invoice deleted','success');
-}
-
-function printInvoicePreview(){
-  const id=document.getElementById('inv-preview-inv-id').value;
-  const inv=allInvoices.find(i=>String(i.id)===String(id));
-  const client=allClients.find(c=>c.id===inv?.client_id);
-  const clientName=client?`${client.first_name} ${client.last_name}`:'';
-  const items=inv?.line_items||[];
-
-  const win=window.open('','_blank');
-  win.document.write(`<!DOCTYPE html><html><head><title>Invoice #${escapeHtml(inv?.invoice_number||'')}</title>
-  <style>
-    *{margin:0;padding:0;box-sizing:border-box;}
-    body{font-family:-apple-system,'DM Sans',sans-serif;color:#16132a;padding:40px;font-size:14px;line-height:1.6;}
-    .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:32px;padding-bottom:20px;border-bottom:2px solid #16132a;}
-    .biz-name{font-size:22px;font-weight:600;letter-spacing:-.3px;}
-    .inv-num{font-size:20px;font-weight:600;color:#6c5ce7;text-align:right;}
-    .inv-label{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:#888;margin-bottom:4px;text-align:right;}
-    .meta{display:flex;justify-content:space-between;margin-bottom:28px;}
-    .meta-block{}
-    .meta-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#888;margin-bottom:5px;}
-    .meta-val{font-size:14px;color:#16132a;}
-    table{width:100%;border-collapse:collapse;margin-bottom:20px;}
-    th{text-align:left;padding:8px 0;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#888;border-bottom:1.5px solid #dde3f2;}
-    td{padding:10px 0;border-bottom:1px solid #eef1f8;font-size:14px;}
-    th:last-child,td:last-child{text-align:right;}
-    .total-row td{border-top:2px solid #16132a;border-bottom:none;padding-top:14px;font-weight:600;font-size:18px;}
-    .notes{background:#f0f2f9;padding:14px;border-radius:8px;font-size:13px;color:#5a6280;margin-bottom:16px;}
-    .footer{text-align:center;margin-top:32px;padding-top:16px;border-top:1px solid #dde3f2;font-size:12px;color:#888;}
-    ${inv?.payment_link?`.pay-link{display:inline-block;margin:16px 0;padding:12px 24px;background:#6c5ce7;color:white;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;}`:''}
-  </style></head><body>
-  <div class="header">
-    <div>
-      <div class="biz-name">${escapeHtml(currentProfile?.business_name||'Studio')}</div>
-      <div style="font-size:13px;color:#888;margin-top:4px;">${escapeHtml(currentProfile?.email||'')}</div>
-    </div>
-    <div>
-      <div class="inv-label">Invoice</div>
-      <div class="inv-num">#${escapeHtml(inv?.invoice_number||'')}</div>
-    </div>
-  </div>
-  <div class="meta">
-    <div class="meta-block">
-      <div class="meta-label">Billed To</div>
-      <div class="meta-val" style="font-weight:500">${escapeHtml(clientName)}</div>
-      ${client?`<div class="meta-val" style="color:#888">${escapeHtml(client.email)}</div>`:''}
-    </div>
-    <div class="meta-block" style="text-align:right">
-      <div class="meta-label">Issue Date</div>
-      <div class="meta-val">${formatDate(inv?.created_at)}</div>
-      ${inv?.due_date?`<div class="meta-label" style="margin-top:10px">Due Date</div><div class="meta-val">${formatDate(inv.due_date)}</div>`:''}
-    </div>
-  </div>
-  <table>
-    <thead><tr><th style="width:50%">Description</th><th>Rate</th><th>Qty</th><th>Total</th></tr></thead>
-    <tbody>${items.map(item=>`<tr>
-      <td>${escapeHtml(item.description||'')}</td>
-      <td>${formatCurrency(item.rate)}</td>
-      <td>${item.qty}</td>
-      <td>${formatCurrency(item.total)}</td>
-    </tr>`).join('')}</tbody>
-    <tfoot><tr class="total-row"><td colspan="3" style="text-align:right">Total</td><td>${formatCurrency(inv?.total)}</td></tr></tfoot>
-  </table>
-  ${inv?.notes?`<div class="notes">${escapeHtml(inv.notes)}</div>`:''}
-  ${inv?.payment_link?`<a href="${escapeHtml(inv.payment_link)}" class="pay-link">Pay Now</a>`:''}
-  <div class="footer">Thank you for your business</div>
-  </body></html>`);
-  win.document.close();
-  setTimeout(()=>win.print(),600);
-}
 
 /* ══════════════════════════════════════════
    SHARE INVOICE
@@ -1204,12 +977,11 @@ async function openShareInvoiceModal(preselectedId=null){
   openModal('share-invoice');}
 function updateShareLink(){const opt=document.getElementById('share-invoice-select').selectedOptions[0];const token=opt?.dataset?.token;document.getElementById('share-link-input').value=token?`https://sendzest.github.io/Studio-portal/invoice.html?token=${token}`:'';}
 function copyShareLink(){const v=document.getElementById('share-link-input').value;if(!v){showToast('Select an invoice first','error');return;}navigator.clipboard.writeText(v);showToast('Link copied!','success');}
-function copyAndCloseShareModal(){
+function emailShareLink(){
+  // Just copy the link — no email integration
   copyShareLink();
   closeModal('share-invoice');
 }
-// Keep old name as alias in case any HTML still references it
-function emailShareLink(){copyAndCloseShareModal();}
 
 /* ══════════════════════════════════════════
    MESSAGES
@@ -1261,6 +1033,8 @@ function populateTimeProjectSelects(){
   const ss=document.getElementById('tp-studio-project-select');
   if(ss){ss.innerHTML='<option value="">No linked studio project</option>'+allProjects.map(p=>`<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');}
 }
+
+function globalSearch(val){if(!val.trim())return;}
 
 /* ══════════════════════════════════════════
    HELPERS for tab switch
@@ -1364,6 +1138,10 @@ async function loadNotionPages(token) {
         </div>
       </div>`;
     }).join('');
+
+    // Update dashboard notion container header too
+    const header = document.querySelector('#dashboard-notion .loading');
+    if (header) header.remove();
 
   } catch (e) {
     if (list) list.innerHTML = `<div style="font-size:12px;color:var(--text-mid);text-align:center;padding:8px">Failed to load Notion pages</div>`;

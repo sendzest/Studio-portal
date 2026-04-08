@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Studio Portal — Sign In</title>
+<link rel="stylesheet" href="css/style.css?v=8">
+</head>
+<body>
+
+<div class="auth-screen">
+  <div class="auth-card">
+    <div class="auth-wordmark">Studio<em>.</em></div>
+    <div class="auth-sub">Your creative business workspace</div>
+
+    <!-- Error message -->
+    <div class="auth-error" id="auth-error"></div>
+
+    <!-- Magic link sent confirmation -->
+    <div id="magic-sent" style="display:none;">
+      <div style="text-align:center;padding:20px 0;">
+        <div style="font-size:40px;margin-bottom:16px;">✉️</div>
+        <div style="font-family:'DM Serif Display',serif;font-size:20px;margin-bottom:8px;">Check your email</div>
+        <div style="color:var(--text-mid);font-size:13.5px;line-height:1.65;">We've sent a magic link to <strong id="magic-email"></strong>. Click it to sign in — no password needed.</div>
+        <button class="btn btn-ghost" style="margin-top:20px;" onclick="showPasswordForm()">Sign in with password instead</button>
+      </div>
+    </div>
+
+    <!-- Sign in form -->
+    <div id="signin-form">
+      <div class="fgroup">
+        <label>Email</label>
+        <input type="email" id="email" placeholder="hello@yourstudio.com" autocomplete="email">
+      </div>
+      <div class="fgroup" id="password-group">
+        <label>Password</label>
+        <input type="password" id="password" placeholder="••••••••" autocomplete="current-password">
+      </div>
+
+      <button class="btn-login" id="signin-btn" onclick="signIn()">Sign in</button>
+
+      <div class="auth-divider">or</div>
+
+      <button class="btn-login-secondary" onclick="sendMagicLink()">
+        ✉️ Send me a magic link
+      </button>
+
+      <div class="auth-footer">
+        <a onclick="togglePasswordGroup()">Forgot password?</a>
+        &nbsp;·&nbsp;
+        <a href="portal.html">Client? Sign in here</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/client.js"></script>
+<script>
+initTheme();
+
+// If already logged in as owner, redirect
+(async () => {
+  const { data: { session } } = await db.auth.getSession();
+  if (session) {
+    // Check if owner
+    const { data: profile } = await db.from('profiles').select('id').eq('id', session.user.id).single();
+    if (profile) window.location.href = 'app.html';
+  }
+})();
+
+async function signIn() {
+  const email = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value;
+  const btn = document.getElementById('signin-btn');
+
+  if (!email || !password) {
+    showError('Please enter your email and password.');
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Signing in…';
+
+  const { error } = await db.auth.signInWithPassword({ email, password });
+
+  if (error) {
+    showError(error.message);
+    btn.disabled = false;
+    btn.textContent = 'Sign in';
+    return;
+  }
+
+  window.location.href = 'app.html';
+}
+
+async function sendMagicLink() {
+  const email = document.getElementById('email').value.trim();
+  if (!email) {
+    showError('Please enter your email address first.');
+    return;
+  }
+
+  const { error } = await db.auth.signInWithOtp({
+    email,
+    options: { emailRedirectTo: 'https://sendzest.github.io/studio-portal/app.html' }
+  });
+
+  if (error) {
+    showError(error.message);
+    return;
+  }
+
+  document.getElementById('magic-email').textContent = email;
+  document.getElementById('signin-form').style.display = 'none';
+  document.getElementById('magic-sent').style.display = 'block';
+}
+
+function showPasswordForm() {
+  document.getElementById('signin-form').style.display = 'block';
+  document.getElementById('magic-sent').style.display = 'none';
+}
+
+function showError(msg) {
+  const el = document.getElementById('auth-error');
+  el.textContent = msg;
+  el.classList.add('show');
+}
+
+function togglePasswordGroup() {
+  const pg = document.getElementById('password-group');
+  const btn = document.getElementById('signin-btn');
+  if (pg.style.display === 'none') {
+    pg.style.display = 'block';
+    btn.textContent = 'Sign in';
+    btn.onclick = signIn;
+  } else {
+    pg.style.display = 'none';
+    btn.textContent = 'Send reset link';
+    btn.onclick = sendReset;
+  }
+}
+
+async function sendReset() {
+  const email = document.getElementById('email').value.trim();
+  if (!email) { showError('Enter your email first.'); return; }
+  const { error } = await db.auth.resetPasswordForEmail(email, {
+    redirectTo: 'https://sendzest.github.io/studio-portal/index.html'
+  });
+  if (error) { showError(error.message); return; }
+  showToast('Password reset email sent!', 'success');
+}
+
+// Enter key
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter') signIn();
+});
+</script>
+</body>
+</html>
