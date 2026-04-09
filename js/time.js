@@ -657,8 +657,10 @@ async function saveTimeEntry(){
   const editId=document.getElementById('te-edit-id').value;
   const hourlyRate=parseFloat(document.getElementById('te-hourly-rate')?.value)||null;
   if(!date||!start||!end){showToast('Date, start and end time are required','error');return;}
-  const[sh,sm]=start.split(':').map(Number);
-  const[eh,em]=end.split(':').map(Number);
+  const startParts=start.split(':').map(Number);
+  const endParts=end.split(':').map(Number);
+  const sh=startParts[0],sm=startParts[1];
+  const eh=endParts[0],em=endParts[1];
   const durMins=(eh*60+em)-(sh*60+sm);
   if(durMins<=0){showToast('End time must be after start time','error');return;}
   // Parse sp:/tp: prefix
@@ -680,7 +682,7 @@ async function saveTimeEntry(){
   }else{
     ({error}=await db.from('time_entries').insert({...updateRow,owner_id:currentUser.id,invoiced:false}));
   }
-  if(error){showToast('Failed to save entry','error');return;}
+  if(error){showToast('Error: '+error.message,'error');console.error('saveTimeEntry error:',error);return;}
   await loadTimeData();closeModal('time-entry-modal');
   showToast(editId?'Entry updated!':'Entry added!','success');
   refreshTimeUI();updateDashboardClockWidget();
