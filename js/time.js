@@ -665,19 +665,21 @@ async function saveTimeEntry(){
   let studioProjectId=null,timeProjectId=null;
   if(rawProj.startsWith('sp:'))studioProjectId=rawProj.slice(3);
   else if(rawProj.startsWith('tp:'))timeProjectId=rawProj.slice(3);
-  const row={
-    owner_id:currentUser.id,
+  const updateRow={
     time_project_id:timeProjectId||null,
     project_id:studioProjectId||null,
     description:desc||null,
     date,start_time:start,end_time:end,
     duration:durMins*60,
     hourly_rate:hourlyRate||null,
-    invoiced:false,running:false
+    running:false
   };
   let error;
-  if(editId)({error}=await db.from('time_entries').update(row).eq('id',editId));
-  else({error}=await db.from('time_entries').insert(row));
+  if(editId){
+    ({error}=await db.from('time_entries').update(updateRow).eq('id',editId));
+  }else{
+    ({error}=await db.from('time_entries').insert({...updateRow,owner_id:currentUser.id,invoiced:false}));
+  }
   if(error){showToast('Failed to save entry','error');return;}
   await loadTimeData();closeModal('time-entry-modal');
   showToast(editId?'Entry updated!':'Entry added!','success');
