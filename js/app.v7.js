@@ -92,6 +92,11 @@ function showPage(id,btn){
 
 async function signOut(){await db.auth.signOut();window.location.href='index.html';}
 
+function openClientPortal(clientEmail){
+  const url='portal.html'+(clientEmail?'?client='+encodeURIComponent(clientEmail):'');
+  window.open(url,'_blank');
+}
+
 /* ══════════════════════════════════════════
    DATA
 ══════════════════════════════════════════ */
@@ -115,29 +120,29 @@ async function renderDashboard(){
 
   // Row 1: Stats
   document.getElementById('stats-row').innerHTML=`
-    <div class="stat-card">
-      <div class="stat-icon">⏱</div>
+    <div class="stat-card neon">
       <div class="stat-label">Today</div>
       <div class="stat-value">${typeof fmtDurShort==='function'?fmtDurShort(todayH+(runningEntry?timerSeconds:0)):'0:00'}</div>
       <div class="stat-sub">${formatCurrency(todayE)} earned</div>
+      <span class="stat-chip nk">▲ On track</span>
     </div>
-    <div class="stat-card">
-      <div class="stat-icon">📅</div>
+    <div class="stat-card glass">
       <div class="stat-label">This week</div>
       <div class="stat-value">${typeof fmtDurShort==='function'?fmtDurShort(weekH):'0:00'}</div>
-      <div class="stat-sub">${formatCurrency(typeof getWeekE==='function'?getWeekE():0)}</div>
+      <div class="stat-sub">${formatCurrency(typeof getWeekE==='function'?getWeekE():0)} earned</div>
+      <span class="stat-chip g">▲ This week</span>
     </div>
-    <div class="stat-card">
-      <div class="stat-icon">⏳</div>
+    <div class="stat-card glass">
       <div class="stat-label">Unpaid</div>
-      <div class="stat-value">${formatCurrency(unpaidTotal)}</div>
-      <div class="stat-sub ${overdue.length>0?'stat-down':''}">${overdue.length>0?overdue.length+' overdue':allInvoices.filter(i=>i.status==='sent').length+' outstanding'}</div>
+      <div class="stat-value" style="${overdue.length>0?'color:var(--amber)':''}">${formatCurrency(unpaidTotal)}</div>
+      <div class="stat-sub">${overdue.length>0?overdue.length+' overdue':allInvoices.filter(i=>i.status==='sent').length+' outstanding'}</div>
+      <span class="stat-chip ${overdue.length>0?'a':'g'}">${overdue.length>0?'⚠ Overdue':'✓ On time'}</span>
     </div>
-    <div class="stat-card">
-      <div class="stat-icon">💰</div>
+    <div class="stat-card dark">
       <div class="stat-label">Revenue YTD</div>
       <div class="stat-value">${formatCurrency(revenue)}</div>
       <div class="stat-sub">${allInvoices.filter(i=>i.status==='paid').length} paid invoices</div>
+      <span class="stat-chip dk">▲ YTD</span>
     </div>`;
 
   // Row 2: Calendar + upcoming bookings
@@ -191,17 +196,15 @@ async function renderDashboardCalendar(){
 
   container.innerHTML=`
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-      <div style="font-size:13px;font-weight:500;color:var(--text);">This week</div>
-      <span style="font-size:12px;color:var(--text-mid);">${today.toLocaleDateString('en-GB',{month:'long',year:'numeric'})}</span>
+      <div class="section-title">This week</div>
+      <span style="font-size:12px;color:var(--text-mid);font-weight:600;">${today.toLocaleDateString('en-GB',{month:'long',year:'numeric'})}</span>
     </div>
-    <div style="display:flex;gap:4px;margin-bottom:${upcoming.length?'14px':'0'};">
+    <div class="cal-strip-row">
       ${weekDays.map(d=>`
-        <div style="display:flex;flex-direction:column;align-items:center;gap:4px;flex:1;">
-          <div style="font-size:10px;color:var(--text-mid);text-transform:uppercase;letter-spacing:.05em;">${d.name}</div>
-          <div style="width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;
-            background:${d.isToday?'var(--accent)':'transparent'};
-            color:${d.isToday?'#fff':'var(--text)'};">${d.date}</div>
-          ${d.hasBook?`<div style="width:4px;height:4px;border-radius:50%;background:var(--accent);"></div>`:`<div style="width:4px;height:4px;"></div>`}
+        <div class="cal-strip-day${d.isToday?' today':''}">
+          <div class="cal-strip-dow">${d.name}</div>
+          <div class="cal-strip-num">${d.date}</div>
+          <div class="cal-strip-pip${d.hasBook?' on':''}"></div>
         </div>`).join('')}
     </div>
     ${upcoming.length?`
@@ -213,17 +216,13 @@ async function renderDashboardCalendar(){
           const when=diff<0?'Now':hrs<1?`in ${mins}m`:hrs<24?`in ${hrs}h`:`${formatDateShort(b.start_at)}`;
           const isToday=b.start_at.startsWith(today.toISOString().slice(0,10));
           const client=b.clients?`${b.clients.first_name} ${b.clients.last_name}`:'';
-          return`<div style="display:flex;align-items:center;justify-content:space-between;padding:9px 11px;
-            background:${isToday?'var(--accent-soft)':'var(--surface2)'};
-            border-radius:var(--r);">
-            <div style="display:flex;align-items:center;gap:8px;">
-              <div style="width:8px;height:8px;border-radius:50%;background:var(--accent);flex-shrink:0;"></div>
-              <div>
-                <div style="font-size:13px;font-weight:500;color:var(--text);">${escapeHtml(b.title)}</div>
-                <div style="font-size:11px;color:var(--text-mid);">${isToday?new Date(b.start_at).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}):formatDateShort(b.start_at)}${client?' · '+escapeHtml(client):''}</div>
-              </div>
+          return`<div class="bk-row ${isToday?'dark':'soft'}">
+            <div class="bk-ico">📅</div>
+            <div style="flex:1;min-width:0;">
+              <div class="bk-name">${escapeHtml(b.title)}</div>
+              <div class="bk-time">${isToday?new Date(b.start_at).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}):formatDateShort(b.start_at)}${client?' · '+escapeHtml(client):''}</div>
             </div>
-            <span style="font-size:11px;color:${isToday?'var(--accent)':'var(--text-mid)'};white-space:nowrap;">${when}</span>
+            <span class="bk-when">${when}</span>
           </div>`;
         }).join('')}
       </div>`:'<div style="font-size:12px;color:var(--text-mid);text-align:center;padding:8px 0;">No upcoming bookings</div>'}
@@ -236,7 +235,7 @@ function renderWeekChart(){
 
   const today=new Date();
   const mon=new Date(today);mon.setDate(today.getDate()-((today.getDay()+6)%7));
-  const days=['M','T','W','T','F','S','S'];
+  const days=['M','Tu','W','Th','F','Sa','Su'];
   const vals=days.map((_,i)=>{
     const d=new Date(mon);d.setDate(mon.getDate()+i);
     const ds=d.toISOString().slice(0,10);
@@ -249,22 +248,23 @@ function renderWeekChart(){
   const weekE=typeof getWeekE==='function'?getWeekE():0;
 
   container.innerHTML=`
-    <div style="font-size:13px;font-weight:500;color:var(--text);margin-bottom:12px;">Hours this week</div>
-    <div style="display:flex;align-items:flex-end;gap:5px;height:52px;margin-bottom:6px;">
+    <div class="section-title" style="margin-bottom:12px;">Hours this week</div>
+    <div class="week-bars">
       ${vals.map(v=>{
         const pct=v.secs/max*100;
-        const bg=v.isToday?'var(--accent)':v.isFuture?'var(--border)':v.secs>0?'#CECBF6':'var(--border)';
-        const border=v.isFuture?'1px dashed var(--warm2)':'none';
-        return`<div style="flex:1;border-radius:3px 3px 0 0;height:${Math.max(pct,4)}%;background:${bg};border:${border};"></div>`;
+        const cls=v.isToday?'week-bar today-bar':v.secs>0?'week-bar filled':'week-bar';
+        return`<div class="${cls}" style="height:${Math.max(pct,4)}%;"></div>`;
       }).join('')}
     </div>
-    <div style="display:flex;gap:5px;">
-      ${vals.map((v,i)=>`<div style="flex:1;text-align:center;font-size:10px;color:${v.isToday?'var(--accent)':'var(--text-mid)'};font-weight:${v.isToday?'600':'400'};">${v.label}</div>`).join('')}
+    <div class="week-bar-days">
+      ${vals.map((v,i)=>`<div class="week-bar-day${v.isToday?' today':''}">${v.label}</div>`).join('')}
     </div>
-    <div style="margin-top:14px;border-top:1px solid var(--border);padding-top:12px;">
-      <div style="font-size:11px;color:var(--text-mid);">Total so far</div>
-      <div style="font-size:20px;font-weight:500;color:var(--text);margin-top:2px;">${typeof fmtDurShort==='function'?fmtDurShort(weekH):'0:00'}</div>
-      <div style="font-size:12px;color:var(--text-mid);margin-top:2px;">${formatCurrency(weekE)} earned</div>
+    <div class="week-total-row">
+      <div>
+        <div class="week-total-val">${typeof fmtDurShort==='function'?fmtDurShort(weekH):'0:00'}</div>
+        <div class="week-total-lbl">${formatCurrency(weekE)} earned</div>
+      </div>
+      <span class="stat-chip g">▲ This week</span>
     </div>
   `;
 }
@@ -302,7 +302,9 @@ async function renderDashboardNotion(){
   const container=document.getElementById('dashboard-notion');
   if(!container)return;
 
-  container.innerHTML=`
+  const notionToken=currentProfile?.notion_token;
+
+  const header=`
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
       <div style="display:flex;align-items:center;gap:7px;">
         <div style="width:16px;height:16px;background:var(--text);border-radius:3px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
@@ -310,38 +312,27 @@ async function renderDashboardNotion(){
         </div>
         <div style="font-size:13px;font-weight:500;color:var(--text);">Notion</div>
       </div>
-      <div class="loading" style="padding:0;"><div class="spinner" style="width:14px;height:14px;"></div></div>
-    </div>
+    </div>`;
+
+  if(!notionToken){
+    container.innerHTML=header+`
+      <div id="notion-pages-list" style="display:flex;flex-direction:column;gap:6px;">
+        <div style="font-size:12px;color:var(--text-mid);background:var(--surface2);border-radius:var(--r);padding:12px;line-height:1.6;text-align:center;">
+          Connect Notion in Settings to see your recent pages here.
+        </div>
+        <a href="app.html#settings" style="display:block;text-align:center;font-size:12px;color:var(--accent);margin-top:6px;cursor:pointer;" onclick="showPage('settings',document.getElementById('nav-settings'))">Set up Notion →</a>
+      </div>`;
+    return;
+  }
+
+  container.innerHTML=header+`
     <div id="notion-pages-list" style="display:flex;flex-direction:column;gap:6px;">
       <div style="font-size:12px;color:var(--text-mid);text-align:center;padding:12px 0;">Loading recent pages…</div>
-    </div>
-  `;
+    </div>`;
 
-  // Fetch recent Notion pages via Supabase edge or just show placeholder
-  // We'll fetch via the Notion MCP on the app side using a stored token approach
-  // For now render a helpful placeholder — real integration needs the Notion API key stored
-  setTimeout(()=>{
-    const list=document.getElementById('notion-pages-list');
-    if(!list)return;
-    list.innerHTML=`
-      <div style="font-size:12px;color:var(--text-mid);background:var(--surface2);border-radius:var(--r);padding:12px;line-height:1.6;text-align:center;">
-        Connect Notion in Settings to see your recent pages here.
-      </div>
-      <a href="app.html#settings" style="display:block;text-align:center;font-size:12px;color:var(--accent);margin-top:6px;cursor:pointer;" onclick="showPage('settings',document.getElementById('nav-settings'))">Set up Notion →</a>
-    `;
-    // Load pages if token exists
-    const notionToken=currentProfile?.notion_token;
-    if(notionToken)loadNotionPages(notionToken);
-  },100);
+  loadNotionPages(notionToken);
 }
 
-async function fetchNotionPages(token){
-  // Notion pages are fetched via Supabase edge function in production
-  // For now show connected state
-  const list=document.getElementById('notion-pages-list');
-  if(!list)return;
-  list.innerHTML=`<div style="font-size:12px;color:var(--text-mid);text-align:center;padding:8px 0;">Notion connected — pages loading…</div>`;
-}
 
 
 function renderProjectListItem(p){
@@ -379,6 +370,11 @@ function renderProjectListItem(p){
 
 async function deleteProject(projectId, name){
   if(!window.confirm(`Delete "${name}"? This will also delete all invoices, contracts, files and messages for this project. This cannot be undone.`))return;
+  // Delete storage files first
+  const{data:projectFiles}=await db.from('files').select('storage_path').eq('project_id',projectId);
+  if(projectFiles?.length){
+    await Promise.all(projectFiles.map(f=>db.storage.from('project-files').remove([f.storage_path])));
+  }
   await Promise.all([
     db.from('invoices').delete().eq('project_id',projectId),
     db.from('contracts').delete().eq('project_id',projectId),
@@ -387,6 +383,7 @@ async function deleteProject(projectId, name){
     db.from('notes').delete().eq('project_id',projectId),
     db.from('bookings').delete().eq('project_id',projectId),
     db.from('time_entries').update({project_id:null}).eq('project_id',projectId),
+    db.from('time_projects').update({project_id:null}).eq('project_id',projectId),
   ]);
   await db.from('projects').delete().eq('id',projectId);
   await loadProjects();
@@ -496,7 +493,7 @@ async function openProject(projectId){
             <button class="btn btn-outline btn-full btn-sm" onclick="openModal('new-contract')">📝 Contract</button>
             <button class="btn btn-outline btn-full btn-sm" onclick="triggerProjectUpload('${project.id}')">📎 Upload File</button>
             <button class="btn btn-outline btn-full btn-sm" onclick="openShareInvoiceModal()">🔗 Share Invoice</button>
-            <button class="btn btn-ghost btn-full btn-sm" onclick="window.open('portal.html','_blank')">↗ Client Portal</button>
+            <button class="btn btn-ghost btn-full btn-sm" onclick="openClientPortal('${client?.email||''}')">↗ Client Portal</button>
           </div>
         </div>
         <div id="project-clock-in-widget"></div>
@@ -740,11 +737,19 @@ function renderInvoicesPage(){
     <div class="stat-card"><div class="stat-label">Overdue</div><div class="stat-value" style="color:${overdue.length?'var(--red)':'var(--text)'}">${formatCurrency(overdue.reduce((s,i)=>s+((i.total||0)-(i.amount_paid||0)),0))}</div><div class="stat-sub ${overdue.length?'stat-down':''}">${overdue.length} invoices</div></div>`;
   const tbody=document.getElementById('invoices-tbody');
   if(!allInvoices.length){tbody.innerHTML=`<tr><td colspan="8"><div class="empty-state"><div class="empty-icon">🧾</div><div class="empty-title">No invoices yet</div><button class="btn btn-accent" onclick="openModal('new-invoice')">+ New Invoice</button></div></td></tr>`;return;}
-  tbody.innerHTML=allInvoices.map(inv=>{const clientName=inv.clients?`${inv.clients.first_name} ${inv.clients.last_name}`:'—';const od=inv.status==='sent'&&inv.due_date&&isOverdue(inv.due_date);
-    return`<tr><td style="font-weight:500">#${escapeHtml(inv.invoice_number)}</td><td>${escapeHtml(clientName)}</td><td style="color:var(--text-mid)">${escapeHtml(inv.projects?.name||'—')}</td><td style="font-weight:600">${formatCurrency(inv.total)}</td><td style="color:${od?'var(--red)':'var(--text-mid)'}">${inv.due_date?formatDate(inv.due_date):'—'}</td><td>${statusBadge(od?'overdue':inv.status)}</td><td><button class="btn btn-ghost btn-sm" onclick="openShareInvoiceModal('${inv.id}')">🔗</button></td><td>${inv.status!=='paid'?`<button class="btn btn-ghost btn-sm" onclick="markPaid('${inv.id}')">Mark paid</button>`:''}</td></tr>`;
+  tbody.innerHTML=allInvoices.map(inv=>{
+    const clientName=inv.clients?`${inv.clients.first_name} ${inv.clients.last_name}`:'—';
+    const od=inv.status==='sent'&&inv.due_date&&isOverdue(inv.due_date);
+    return`<tr style="cursor:pointer" onclick="openInvoicePreview('${inv.id}')">
+      <td style="font-weight:500">#${escapeHtml(inv.invoice_number)}</td>
+      <td>${escapeHtml(clientName)}</td>
+      <td style="color:var(--text-mid)">${escapeHtml(inv.projects?.name||'—')}</td>
+      <td style="font-weight:600">${formatCurrency(inv.total)}</td>
+      <td style="color:${od?'var(--red)':'var(--text-mid)'}">${inv.due_date?formatDate(inv.due_date):'—'}</td>
+      <td>${statusBadge(od?'overdue':inv.status)}</td>
+      <td onclick="event.stopPropagation()"><button class="btn btn-ghost btn-sm" onclick="openShareInvoiceModal('${inv.id}')">🔗</button></td>
+    </tr>`;
   }).join('');}
-
-async function markPaid(id){await db.from('invoices').update({status:'paid',paid_at:new Date().toISOString()}).eq('id',id);await loadInvoices();renderInvoicesPage();showToast('Invoice marked as paid!','success');}
 
 /* ══════════════════════════════════════════
    CONTRACTS
@@ -934,6 +939,7 @@ async function createInvoice(status='draft'){
     due_date:document.getElementById('ni-due').value||null,
     notes:document.getElementById('ni-notes').value,
     payment_link:paymentLink,
+    share_token:crypto.randomUUID(),
     status:dbStatus,
     sent_at:null
   }).select().single();
@@ -963,7 +969,7 @@ function addLineItem(){
 function calcLineTotal(id){const row=document.getElementById(`li-row-${id}`);if(!row)return;const r=parseFloat(row.querySelector('.li-rate').value)||0;const q=parseFloat(row.querySelector('.li-qty').value)||0;document.getElementById(`li-total-${id}`).textContent=formatCurrency(r*q);calcTotal();}
 function calcTotal(){let t=0;document.querySelectorAll('#line-items-body tr').forEach(row=>{const r=parseFloat(row.querySelector('.li-rate')?.value)||0;const q=parseFloat(row.querySelector('.li-qty')?.value)||0;t+=r*q;});document.getElementById('invoice-total').textContent=formatCurrency(t);}
 function getLineItems(){return[...document.querySelectorAll('#line-items-body tr')].map(row=>({description:row.querySelector('.li-desc')?.value||'',rate:parseFloat(row.querySelector('.li-rate')?.value)||0,qty:parseFloat(row.querySelector('.li-qty')?.value)||1,total:(parseFloat(row.querySelector('.li-rate')?.value)||0)*(parseFloat(row.querySelector('.li-qty')?.value)||1)})).filter(i=>i.description||i.rate);}
-function populateInvoiceNumber(){const el=document.getElementById('ni-number');if(!el)return;const n=new Date();el.value=`INV-${n.getFullYear()}${String(n.getMonth()+1).padStart(2,'0')}${String(n.getDate()).padStart(2,'0')}-${String(allInvoices.length+1).padStart(3,'0')}`;}
+function populateInvoiceNumber(){const el=document.getElementById('ni-number');if(!el)return;const n=new Date();const prefix=`INV-${n.getFullYear()}${String(n.getMonth()+1).padStart(2,'0')}${String(n.getDate()).padStart(2,'0')}`;const existingNums=allInvoices.map(i=>{const m=i.invoice_number?.match(/-(\d+)$/);return m?parseInt(m[1],10):0;});const next=Math.max(0,...existingNums)+1;el.value=`${prefix}-${String(next).padStart(3,'0')}`;}
 
 async function createContract(){
   const title=document.getElementById('nc2-title').value.trim();const content=document.getElementById('nc2-content').value.trim();
@@ -979,8 +985,8 @@ async function createNote(){
   if(error){showToast('Failed','error');return;}closeModal('add-note');loadNotes();showToast('Note saved!','success');}
 
 async function createBooking(){
-  const title=document.getElementById('nb-title').value.trim();const date=document.getElementById('nb-date').value;const start=document.getElementById('nb-start').value;
-  if(!title||!date||!start){showToast('Title, date and start time required','error');return;}
+  const title=document.getElementById('nb-title').value.trim();const date=document.getElementById('nb-date').value;const start=document.getElementById('nb-start').value;const end=document.getElementById('nb-end').value;
+  if(!title||!date||!start||!end){showToast('Title, date, start and end time required','error');return;}
   const{error}=await db.from('bookings').insert({owner_id:currentUser.id,client_id:document.getElementById('nb-client').value||null,project_id:document.getElementById('nb-project').value||null,title,start_at:`${date}T${start}:00`,end_at:`${date}T${document.getElementById('nb-end').value}:00`,location:document.getElementById('nb-location').value||null,notes:document.getElementById('nb-notes').value||null});
   if(error){showToast('Failed','error');return;}closeModal('new-booking');renderCalendar();showToast('Booking created!','success');}
 
@@ -993,7 +999,7 @@ function loadContractTemplate(){
 ══════════════════════════════════════════ */
 
 function openInvoicePreview(invoiceId){
-  const inv=allInvoices.find(i=>i.id===invoiceId);
+  const inv=allInvoices.find(i=>String(i.id)===String(invoiceId));
   if(!inv){showToast('Invoice not found','error');return;}
   const client=allClients.find(c=>c.id===inv.client_id);
   const project=allProjects.find(p=>p.id===inv.project_id);
@@ -1079,7 +1085,7 @@ async function invoicePreviewMarkSent(){
   const id=document.getElementById('inv-preview-inv-id').value;
   await db.from('invoices').update({status:'sent',sent_at:new Date().toISOString()}).eq('id',id);
   await loadInvoices();
-  const inv=allInvoices.find(i=>i.id===id);
+  const inv=allInvoices.find(i=>String(i.id)===String(id));
   if(inv){
     document.getElementById('inv-preview-mark-sent').style.display='none';
     document.getElementById('inv-preview-mark-paid').style.display='block';
@@ -1100,20 +1106,23 @@ async function invoicePreviewMarkPaid(){
 }
 
 async function deleteInvoiceFromPreview(){
-  const id=document.getElementById('inv-preview-inv-id').value;
-  const inv=allInvoices.find(i=>i.id===id);
-  if(!window.confirm(`Delete invoice #${inv?.invoice_number}? This cannot be undone.`))return;
-  await db.from('invoices').delete().eq('id',id);
+  const id=document.getElementById('inv-preview-inv-id')?.value;
+  if(!id){showToast('No invoice selected','error');return;}
+  const inv=allInvoices.find(i=>String(i.id)===String(id));
+  if(!window.confirm('Delete invoice'+(inv?` #${inv.invoice_number}`:'')+`? This cannot be undone.`))return;
+  const{error}=await db.from('invoices').delete().eq('id',id);
+  if(error){showToast('Failed to delete: '+error.message,'error');return;}
   await loadInvoices();
   closeModal('invoice-preview');
   renderInvoicesPage();
+  updateInvoiceBadge();
   if(currentProjectId)openProject(currentProjectId);
   showToast('Invoice deleted','success');
 }
 
 function printInvoicePreview(){
   const id=document.getElementById('inv-preview-inv-id').value;
-  const inv=allInvoices.find(i=>i.id===id);
+  const inv=allInvoices.find(i=>String(i.id)===String(id));
   const client=allClients.find(c=>c.id===inv?.client_id);
   const clientName=client?`${client.first_name} ${client.last_name}`:'';
   const items=inv?.line_items||[];
@@ -1190,11 +1199,12 @@ async function openShareInvoiceModal(preselectedId=null){
   openModal('share-invoice');}
 function updateShareLink(){const opt=document.getElementById('share-invoice-select').selectedOptions[0];const token=opt?.dataset?.token;document.getElementById('share-link-input').value=token?`https://sendzest.github.io/Studio-portal/invoice.html?token=${token}`:'';}
 function copyShareLink(){const v=document.getElementById('share-link-input').value;if(!v){showToast('Select an invoice first','error');return;}navigator.clipboard.writeText(v);showToast('Link copied!','success');}
-function emailShareLink(){
-  // Just copy the link — no email integration
+function copyAndCloseShareModal(){
   copyShareLink();
   closeModal('share-invoice');
 }
+// Keep old name as alias in case any HTML still references it
+function emailShareLink(){copyAndCloseShareModal();}
 
 /* ══════════════════════════════════════════
    MESSAGES
@@ -1246,8 +1256,6 @@ function populateTimeProjectSelects(){
   const ss=document.getElementById('tp-studio-project-select');
   if(ss){ss.innerHTML='<option value="">No linked studio project</option>'+allProjects.map(p=>`<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');}
 }
-
-function globalSearch(val){if(!val.trim())return;}
 
 /* ══════════════════════════════════════════
    HELPERS for tab switch
@@ -1351,10 +1359,6 @@ async function loadNotionPages(token) {
         </div>
       </div>`;
     }).join('');
-
-    // Update dashboard notion container header too
-    const header = document.querySelector('#dashboard-notion .loading');
-    if (header) header.remove();
 
   } catch (e) {
     if (list) list.innerHTML = `<div style="font-size:12px;color:var(--text-mid);text-align:center;padding:8px">Failed to load Notion pages</div>`;

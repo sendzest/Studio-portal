@@ -4,14 +4,276 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Studio Portal</title>
-<link rel="stylesheet" href="css/style.css?v=8">
+<link rel="stylesheet" href="css/style.css?v=10">
 <style>
+/* ── Page-level layout tweaks ── */
+.page-inner { padding: 24px 28px; display: flex; flex-direction: column; gap: 16px; }
+
+/* ── Topbar refined ── */
+.topbar {
+  height: 64px;
+  padding: 0 28px;
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--surface);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  position: sticky; top: 0; z-index: 50; flex-shrink: 0;
+}
+.topbar-left { display: flex; align-items: center; gap: 10px; }
+.topbar-page-title {
+  font-size: 18px; font-weight: 800;
+  letter-spacing: -.3px; color: var(--text);
+}
+.topbar-right { display: flex; align-items: center; gap: 10px; }
+
+/* ── Icon button (circle) ── */
+.ico-btn {
+  width: 38px; height: 38px; border-radius: 50%;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px; cursor: pointer;
+  transition: transform .15s, background .15s;
+  position: relative;
+}
+.ico-btn:hover { transform: scale(1.07); background: var(--accent-soft); }
+.ico-btn .dot {
+  position: absolute; top: 6px; right: 6px;
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--red); border: 1.5px solid var(--paper);
+}
+
+/* ── Primary action button ── */
+.btn-primary-action {
+  display: flex; align-items: center; gap: 7px;
+  padding: 9px 18px 9px 12px;
+  background: var(--ink2); color: #fff; border: none;
+  border-radius: 40px;
+  font-family: inherit; font-size: 13px; font-weight: 700;
+  cursor: pointer; box-shadow: var(--shadow-md);
+  transition: transform .15s;
+}
+.btn-primary-action:hover { transform: scale(1.03); }
+.btn-primary-action .plus-ico {
+  width: 22px; height: 22px; border-radius: 50%;
+  background: rgba(255,255,255,.15);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; line-height: 1;
+}
+
+/* ── Stat cards ── */
+.stats-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; }
+.stat-card {
+  border-radius: 20px; padding: 18px 16px;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+  position: relative; overflow: hidden;
+}
+.stat-card.glass { background: var(--surface); backdrop-filter: blur(16px); }
+.stat-card.neon  { background: var(--neon); border-color: transparent; }
+.stat-card.dark  { background: var(--ink2); border-color: transparent; }
+.stat-label { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .09em; color: var(--text-mid); margin-bottom: 8px; }
+.stat-card.neon .stat-label { color: rgba(26,40,0,.5); }
+.stat-card.dark .stat-label { color: rgba(255,255,255,.38); }
+.stat-value { font-size: 28px; font-weight: 800; letter-spacing: -.6px; line-height: 1; color: var(--text); margin-bottom: 3px; }
+.stat-card.neon .stat-value { color: var(--neon-ink); }
+.stat-card.dark .stat-value { color: #fff; }
+.stat-sub { font-size: 11.5px; color: var(--text-mid); margin-bottom: 10px; }
+.stat-card.neon .stat-sub { color: rgba(26,40,0,.55); }
+.stat-card.dark .stat-sub { color: rgba(255,255,255,.38); }
+.stat-chip {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: 10.5px; font-weight: 800; padding: 3px 9px; border-radius: 20px;
+}
+.stat-chip.g  { background: var(--green-light); color: var(--green); }
+.stat-chip.a  { background: var(--amber-light); color: var(--amber); }
+.stat-chip.r  { background: var(--red-light);   color: var(--red); }
+.stat-chip.w  { background: rgba(255,255,255,.55); color: var(--ink2); }
+.stat-chip.dk { background: rgba(255,255,255,.12); color: rgba(255,255,255,.75); }
+.stat-chip.nk { background: rgba(26,40,0,.12); color: var(--neon-ink); }
+.stat-icon { position: absolute; top: 16px; right: 16px; font-size: 18px; opacity: .25; }
+
+/* ── Section header row ── */
+.section-row {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 14px;
+}
+.section-row .section-title { margin: 0; }
+.see-all-btn {
+  font-size: 12px; font-weight: 700; color: var(--text-mid);
+  background: var(--surface2); border: none; border-radius: 20px;
+  padding: 4px 12px; cursor: pointer; font-family: inherit;
+  transition: background .15s, color .15s;
+}
+.see-all-btn:hover { background: var(--accent-soft); color: var(--accent); }
+
+/* ── Project list items ── */
+.proj-list-item {
+  background: var(--surface); backdrop-filter: blur(14px);
+  border: 1px solid var(--border);
+  border-radius: 20px; padding: 14px 16px;
+  display: flex; align-items: center; gap: 14px;
+  margin-bottom: 10px; transition: all .15s;
+  cursor: pointer; box-shadow: var(--shadow-sm);
+}
+.proj-list-item:hover { border-color: var(--accent); box-shadow: var(--shadow-md); transform: translateY(-1px); }
+.proj-color-bar { width: 4px; border-radius: 2px; align-self: stretch; flex-shrink: 0; }
+.proj-avatar {
+  width: 40px; height: 40px; border-radius: 13px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 700; flex-shrink: 0;
+}
+.proj-prog { height: 3px; background: rgba(0,0,0,.08); border-radius: 2px; margin-top: 5px; overflow: hidden; }
+.proj-prog-fill { height: 100%; border-radius: 2px; }
+[data-theme="dark"] .proj-prog { background: rgba(255,255,255,.1); }
+
+/* ── Calendar strip ── */
+.cal-strip-row { display: flex; gap: 6px; margin-bottom: 14px; }
+.cal-strip-day {
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 9px 3px; border-radius: 14px; cursor: pointer; transition: background .15s;
+}
+.cal-strip-day:hover { background: var(--surface2); }
+.cal-strip-day.today { background: var(--ink2); box-shadow: var(--shadow-md); }
+.cal-strip-dow { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--text-mid); }
+.cal-strip-day.today .cal-strip-dow { color: rgba(255,255,255,.4); }
+.cal-strip-num { font-size: 15px; font-weight: 800; color: var(--text); }
+.cal-strip-day.today .cal-strip-num { color: #fff; }
+.cal-strip-pip { width: 5px; height: 5px; border-radius: 50%; }
+.cal-strip-day.today .cal-strip-pip { background: var(--neon); }
+.cal-strip-pip.on { background: var(--lilac2); }
+
+/* ── Booking rows ── */
+.bk-row {
+  display: flex; align-items: center; gap: 11px;
+  padding: 11px 13px; border-radius: 14px; margin-bottom: 7px;
+}
+.bk-row:last-child { margin-bottom: 0; }
+.bk-row.dark { background: var(--ink2); }
+.bk-row.soft { background: rgba(255,255,255,.5); }
+[data-theme="dark"] .bk-row.soft { background: rgba(255,255,255,.06); }
+.bk-ico { font-size: 16px; flex-shrink: 0; }
+.bk-name { font-size: 13px; font-weight: 700; }
+.bk-row.dark .bk-name { color: #fff; }
+.bk-row.soft .bk-name { color: var(--text); }
+.bk-time { font-size: 11px; margin-top: 1px; }
+.bk-row.dark .bk-time { color: rgba(255,255,255,.4); }
+.bk-row.soft .bk-time { color: var(--text-mid); }
+.bk-when { font-size: 11.5px; font-weight: 800; flex-shrink: 0; margin-left: auto; }
+.bk-row.dark .bk-when { color: var(--neon); }
+.bk-row.soft .bk-when { color: var(--text-mid); }
+
+/* ── Timer card ── */
+.timer-card {
+  background: var(--ink2); border-radius: 24px;
+  padding: 20px; color: #fff;
+  box-shadow: var(--shadow-lg);
+  border: 1px solid rgba(255,255,255,.07);
+  position: relative; overflow: hidden;
+}
+.timer-card::after {
+  content: ''; position: absolute;
+  bottom: -24px; right: -24px;
+  width: 90px; height: 90px; border-radius: 50%;
+  background: var(--neon); opacity: .2;
+}
+.timer-running-row { display: flex; align-items: center; gap: 7px; margin-bottom: 12px; }
+.timer-pulse {
+  width: 8px; height: 8px; border-radius: 50%; background: var(--neon);
+  animation: timerPulse2 1.4s ease-in-out infinite; flex-shrink: 0;
+}
+@keyframes timerPulse2 { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(.7)} }
+.timer-running-lbl { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .12em; color: rgba(255,255,255,.38); }
+.timer-display {
+  font-size: 46px; font-weight: 800; letter-spacing: -2px;
+  line-height: 1; margin-bottom: 4px;
+}
+.timer-proj-name { font-size: 12px; color: rgba(255,255,255,.4); margin-bottom: 16px; }
+.timer-btn {
+  width: 100%; padding: 12px; border-radius: 14px;
+  font-size: 13px; font-weight: 700; font-family: inherit;
+  cursor: pointer; transition: background .15s;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.timer-btn.stop { background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.1); color: #fff; }
+.timer-btn.stop:hover { background: rgba(255,255,255,.17); }
+.timer-btn.start { background: var(--neon); border: none; color: var(--neon-ink); margin-top: 10px; }
+.timer-btn.start:hover { box-shadow: 0 4px 20px rgba(198,255,78,.4); transform: scale(1.02); }
+
+/* ── Week bars ── */
+.week-bars { display: flex; align-items: flex-end; gap: 5px; height: 44px; margin-bottom: 5px; }
+.week-bar { flex: 1; border-radius: 4px 4px 0 0; background: rgba(0,0,0,.08); }
+[data-theme="dark"] .week-bar { background: rgba(255,255,255,.1); }
+.week-bar.filled { background: var(--lilac); }
+.week-bar.today-bar { background: var(--ink2); }
+[data-theme="dark"] .week-bar.today-bar { background: var(--lilac2); }
+.week-bar-days { display: flex; gap: 5px; margin-bottom: 12px; }
+.week-bar-day { flex: 1; text-align: center; font-size: 9px; font-weight: 800; text-transform: uppercase; color: var(--text-mid); }
+.week-bar-day.today { color: var(--ink); }
+[data-theme="dark"] .week-bar-day.today { color: var(--lilac2); }
+.week-total-row { display: flex; align-items: center; justify-content: space-between; padding-top: 12px; border-top: 1px solid rgba(0,0,0,.06); }
+[data-theme="dark"] .week-total-row { border-color: rgba(255,255,255,.08); }
+.week-total-val { font-size: 22px; font-weight: 800; letter-spacing: -.4px; }
+.week-total-lbl { font-size: 11px; color: var(--text-mid); margin-top: 1px; }
+
+/* ── Stacked depth effect ── */
+.stack-wrap { position: relative; }
+.stack-wrap::before {
+  content: ''; position: absolute;
+  inset: 0; top: 8px; left: 10px; right: -6px;
+  background: rgba(255,255,255,.32);
+  border-radius: 24px;
+  border: 1px solid rgba(255,255,255,.45);
+  pointer-events: none;
+}
+.stack-wrap::after {
+  content: ''; position: absolute;
+  inset: 0; top: 16px; left: 18px; right: -12px;
+  background: rgba(255,255,255,.18);
+  border-radius: 24px;
+  border: 1px solid rgba(255,255,255,.3);
+  pointer-events: none;
+}
+.stack-wrap .card { position: relative; z-index: 1; }
+[data-theme="dark"] .stack-wrap::before { background: rgba(255,255,255,.04); border-color: rgba(255,255,255,.07); }
+[data-theme="dark"] .stack-wrap::after  { background: rgba(255,255,255,.02); border-color: rgba(255,255,255,.04); }
+
+/* ── Quick note ── */
+.note-ta {
+  width: 100%; resize: none; border: none; background: transparent;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 13px; color: var(--text); line-height: 1.65; outline: none;
+}
+.note-ta::placeholder { color: var(--text-mid); }
+
+/* ── FAB ── */
+.fab {
+  position: fixed; bottom: 28px; right: 28px;
+  width: 50px; height: 50px; border-radius: 50%;
+  background: var(--neon); color: var(--neon-ink);
+  font-size: 26px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  border: none; cursor: pointer;
+  box-shadow: 0 8px 28px rgba(198,255,78,.45);
+  transition: transform .2s, box-shadow .2s; z-index: 100;
+}
+.fab:hover { transform: scale(1.1) rotate(90deg); box-shadow: 0 12px 40px rgba(198,255,78,.6); }
+
+/* ── Notion widget ── */
+.notion-page-item {
+  padding: 9px 10px; background: var(--surface2);
+  border-radius: 12px; cursor: pointer;
+  transition: background .14s; margin-bottom: 6px;
+}
+.notion-page-item:hover { background: var(--accent-soft); }
+.notion-page-item:last-child { margin-bottom: 0; }
+
+/* Print styles */
 @media print {
   .sidebar, .topbar, .topbar-actions, .modal-overlay,
   .btn, button, #toast, .nav-item, .sidebar-footer,
-  [onclick], .proj-list-item > div:last-child {
-    display: none !important;
-  }
+  [onclick], .proj-list-item > div:last-child, .fab { display: none !important; }
   .main { margin-left: 0 !important; }
   .page { display: block !important; padding: 0 !important; }
   body { background: white !important; }
@@ -25,23 +287,55 @@
 
   <!-- ══ SIDEBAR ══ -->
   <nav class="sidebar" id="sidebar">
-    <div class="sidebar-logo">Studio<em>.</em></div>
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-mark">
+        <svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="1" y="1" width="6" height="6" rx="1.5" fill="white"/>
+          <rect x="9" y="1" width="6" height="6" rx="1.5" fill="white" opacity=".6"/>
+          <rect x="1" y="9" width="6" height="6" rx="1.5" fill="white" opacity=".55"/>
+          <rect x="9" y="9" width="6" height="6" rx="1.5" fill="white" opacity=".28"/>
+        </svg>
+      </div>
+      <em>Studio.</em>
+    </div>
     <div class="sidebar-nav">
       <span class="nav-label">Workspace</span>
-      <button class="nav-item active" onclick="showPage('dashboard',this)"><span class="nav-icon">▪</span> Dashboard</button>
-      <button class="nav-item" onclick="showPage('projects',this)"><span class="nav-icon">📁</span> Projects</button>
-      <button class="nav-item" onclick="showPage('clients',this)"><span class="nav-icon">👥</span> Clients</button>
-      <button class="nav-item" onclick="showPage('scheduling',this)"><span class="nav-icon">📅</span> Scheduling</button>
-      <button class="nav-item" id="nav-time" onclick="showPage('time',this)"><span class="nav-icon">⏱</span> Time Tracking</button>
+      <button class="nav-item active" onclick="showPage('dashboard',this)">
+        <span class="nav-icon">📊</span> Dashboard
+      </button>
+      <button class="nav-item" id="nav-projects" onclick="showPage('projects',this)">
+        <span class="nav-icon">📁</span> Projects
+      </button>
+      <button class="nav-item" onclick="showPage('clients',this)">
+        <span class="nav-icon">👥</span> Clients
+      </button>
+      <button class="nav-item" onclick="showPage('scheduling',this)">
+        <span class="nav-icon">📅</span> Scheduling
+      </button>
+      <button class="nav-item" id="nav-time" onclick="showPage('time',this)">
+        <span class="nav-icon">⏱</span> Time Tracking
+      </button>
       <span class="nav-label">Finance</span>
-      <button class="nav-item" id="nav-invoices" onclick="showPage('invoices',this)"><span class="nav-icon">🧾</span> Invoices</button>
-      <button class="nav-item" onclick="showPage('contracts',this)"><span class="nav-icon">📝</span> Contracts</button>
+      <button class="nav-item" id="nav-invoices" onclick="showPage('invoices',this)">
+        <span class="nav-icon">🧾</span> Invoices
+      </button>
+      <button class="nav-item" onclick="showPage('contracts',this)">
+        <span class="nav-icon">📝</span> Contracts
+      </button>
       <span class="nav-label">Content</span>
-      <button class="nav-item" onclick="showPage('files',this)"><span class="nav-icon">🗂</span> Files</button>
-      <button class="nav-item" onclick="showPage('notes',this)"><span class="nav-icon">📌</span> Notes</button>
+      <button class="nav-item" onclick="showPage('files',this)">
+        <span class="nav-icon">🗂</span> Files
+      </button>
+      <button class="nav-item" onclick="showPage('notes',this)">
+        <span class="nav-icon">📌</span> Notes
+      </button>
       <span class="nav-label">Studio</span>
-      <button class="nav-item" onclick="showPage('notifications',this)"><span class="nav-icon">🔔</span> Notifications</button>
-      <button class="nav-item" id="nav-settings" onclick="showPage('settings',this)"><span class="nav-icon">⚙️</span> Settings</button>
+      <button class="nav-item" onclick="showPage('notifications',this)">
+        <span class="nav-icon">🔔</span> Notifications
+      </button>
+      <button class="nav-item" id="nav-settings" onclick="showPage('settings',this)">
+        <span class="nav-icon">⚙️</span> Settings
+      </button>
     </div>
     <div id="sidebar-timer-widget" style="padding:0 10px 8px;"></div>
     <div class="sidebar-footer">
@@ -53,7 +347,9 @@
         </div>
         <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">🌙</button>
       </div>
-      <button class="nav-item" onclick="signOut()" style="margin-top:4px;"><span class="nav-icon">↩</span> Sign out</button>
+      <button class="nav-item" onclick="signOut()" style="margin-top:4px;">
+        <span class="nav-icon">↩</span> Sign out
+      </button>
     </div>
   </nav>
 
@@ -63,49 +359,66 @@
     <!-- ── DASHBOARD ── -->
     <div id="page-dashboard" class="page active">
       <div class="topbar">
-        <div class="topbar-title">Dashboard</div>
-        <div class="topbar-actions">
-          <div class="searchbar">
+        <div class="topbar-left">
+          <div class="topbar-page-title">Dashboard</div>
+        </div>
+        <div class="topbar-right">
+          <div class="searchbar" style="width:220px;">
             <span class="search-icon">🔍</span>
-            <input type="text" id="global-search" placeholder="Search projects, clients…" oninput="globalSearch(this.value)">
+            <input type="text" id="global-search" placeholder="Search…" oninput="globalSearch(this.value)">
           </div>
-          <button class="btn btn-dark" onclick="openModal('new-project')">+ New Project</button>
+          <button class="ico-btn">🔔<span class="dot"></span></button>
+          <button class="btn-primary-action" onclick="openModal('new-project')">
+            <span class="plus-ico">+</span> New Project
+          </button>
         </div>
       </div>
-      <div style="padding:28px;display:flex;flex-direction:column;gap:16px;">
+      <div class="page-inner">
 
-        <!-- Stats row -->
+        <!-- Stats -->
         <div class="stats-row" id="stats-row">
-          <div class="stat-card"><div class="spinner" style="margin:8px 0;"></div></div>
-          <div class="stat-card"><div class="spinner" style="margin:8px 0;"></div></div>
-          <div class="stat-card"><div class="spinner" style="margin:8px 0;"></div></div>
-          <div class="stat-card"><div class="spinner" style="margin:8px 0;"></div></div>
+          <div class="stat-card glass"><div class="spinner" style="margin:8px 0;"></div></div>
+          <div class="stat-card glass"><div class="spinner" style="margin:8px 0;"></div></div>
+          <div class="stat-card glass"><div class="spinner" style="margin:8px 0;"></div></div>
+          <div class="stat-card glass"><div class="spinner" style="margin:8px 0;"></div></div>
         </div>
 
-        <!-- Calendar + upcoming -->
-        <div class="card card-pad" id="dashboard-calendar">
-          <div class="loading"><div class="spinner"></div></div>
+        <!-- Calendar + Timer row -->
+        <div style="display:grid;grid-template-columns:1fr 240px;gap:16px;align-items:start;">
+          <div class="card card-pad" id="dashboard-calendar">
+            <div class="loading"><div class="spinner"></div></div>
+          </div>
+          <div id="dashboard-clock-widget">
+            <div class="loading"><div class="spinner"></div></div>
+          </div>
         </div>
 
         <!-- Projects + week chart -->
-        <div style="display:grid;grid-template-columns:1fr 210px;gap:16px;align-items:start;">
+        <div style="display:grid;grid-template-columns:1fr 240px;gap:16px;align-items:start;">
           <div>
-            <div id="dashboard-clock-widget"></div>
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;margin-top:16px;">
-              <div style="font-family:'DM Serif Display',serif;font-size:17px;color:var(--text);">Active Projects</div>
-              <button class="btn btn-ghost btn-sm" onclick="showPage('projects',document.getElementById('nav-projects'))">View all →</button>
+            <div class="section-row">
+              <div class="section-title">Active Projects</div>
+              <button class="see-all-btn" onclick="showPage('projects',document.getElementById('nav-projects'))">See all →</button>
             </div>
-            <div id="dashboard-projects"><div class="loading"><div class="spinner"></div></div></div>
+            <div id="dashboard-projects">
+              <div class="loading"><div class="spinner"></div></div>
+            </div>
           </div>
-          <div class="card card-pad" id="dashboard-week-chart">
-            <div class="loading"><div class="spinner"></div></div>
+          <div class="stack-wrap">
+            <div class="card card-pad" id="dashboard-week-chart">
+              <div class="loading"><div class="spinner"></div></div>
+            </div>
           </div>
         </div>
 
         <!-- Quick note + Notion -->
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
-          <div class="card card-pad" id="dashboard-note"><div class="loading"><div class="spinner"></div></div></div>
-          <div class="card card-pad" id="dashboard-notion"><div class="loading"><div class="spinner"></div></div></div>
+          <div class="card card-pad" id="dashboard-note">
+            <div class="loading"><div class="spinner"></div></div>
+          </div>
+          <div class="card card-pad" id="dashboard-notion">
+            <div class="loading"><div class="spinner"></div></div>
+          </div>
         </div>
 
       </div>
@@ -114,13 +427,16 @@
     <!-- ── PROJECTS ── -->
     <div id="page-projects" class="page">
       <div class="topbar">
-        <div class="topbar-title">Projects</div>
-        <div class="topbar-actions">
-
-          <button class="btn btn-dark" onclick="openModal('new-project')">+ New Project</button>
+        <div class="topbar-left">
+          <div class="topbar-page-title">Projects</div>
+        </div>
+        <div class="topbar-right">
+          <button class="btn-primary-action" onclick="openModal('new-project')">
+            <span class="plus-ico">+</span> New Project
+          </button>
         </div>
       </div>
-      <div style="padding:28px;">
+      <div class="page-inner">
         <div id="proj-list-content">
           <div class="loading"><div class="spinner"></div> Loading…</div>
         </div>
@@ -130,18 +446,20 @@
     <!-- ── PROJECT DETAIL ── -->
     <div id="page-project-detail" class="page">
       <div class="topbar">
-        <div class="topbar-title">
-          <span class="topbar-crumb" onclick="showPage('projects',null)">Projects</span>
-          <span class="topbar-sep">›</span>
-          <span id="pd-title">Project</span>
+        <div class="topbar-left">
+          <span class="topbar-crumb" onclick="showPage('projects',null)" style="font-size:15px;font-weight:500;color:var(--text-mid);cursor:pointer;">Projects</span>
+          <span style="color:var(--mid);margin:0 8px;">›</span>
+          <span id="pd-title" class="topbar-page-title">Project</span>
         </div>
-        <div class="topbar-actions" id="pd-actions">
-          <button class="btn btn-outline btn-sm" onclick="openShareInvoiceModal()">🔗 Share Invoice</button>
+        <div class="topbar-right" id="pd-actions">
+          <button class="btn btn-outline btn-sm" onclick="openShareInvoiceModal()">🔗 Share</button>
           <button class="btn btn-accent btn-sm" onclick="openModal('new-invoice')">+ Invoice</button>
-          <button class="btn btn-dark btn-sm" onclick="openModal('new-contract')">+ Contract</button>
+          <button class="btn-primary-action" style="padding:8px 15px 8px 10px;font-size:12px;" onclick="openModal('new-contract')">
+            <span class="plus-ico" style="width:20px;height:20px;font-size:14px;">+</span> Contract
+          </button>
         </div>
       </div>
-      <div style="padding:28px;" id="pd-content">
+      <div class="page-inner" id="pd-content">
         <div class="loading"><div class="spinner"></div> Loading project…</div>
       </div>
     </div>
@@ -149,16 +467,20 @@
     <!-- ── CLIENTS ── -->
     <div id="page-clients" class="page">
       <div class="topbar">
-        <div class="topbar-title">Clients</div>
-        <div class="topbar-actions">
-          <div class="searchbar">
+        <div class="topbar-left">
+          <div class="topbar-page-title">Clients</div>
+        </div>
+        <div class="topbar-right">
+          <div class="searchbar" style="width:200px;">
             <span class="search-icon">🔍</span>
             <input type="text" placeholder="Search clients…" oninput="filterClients(this.value)">
           </div>
-          <button class="btn btn-dark" onclick="openModal('new-client')">+ Add Client</button>
+          <button class="btn-primary-action" onclick="openModal('new-client')">
+            <span class="plus-ico">+</span> Add Client
+          </button>
         </div>
       </div>
-      <div style="padding:28px;">
+      <div class="page-inner">
         <div id="clients-list">
           <div class="loading"><div class="spinner"></div> Loading clients…</div>
         </div>
@@ -168,14 +490,18 @@
     <!-- ── SCHEDULING ── -->
     <div id="page-scheduling" class="page">
       <div class="topbar">
-        <div class="topbar-title">Scheduling</div>
-        <div class="topbar-actions">
-          <button class="btn btn-outline" onclick="showToast('Google Calendar sync coming soon','')">Sync Google Calendar</button>
-          <button class="btn btn-dark" onclick="openModal('new-booking')">+ New Booking</button>
+        <div class="topbar-left">
+          <div class="topbar-page-title">Scheduling</div>
+        </div>
+        <div class="topbar-right">
+          <button class="btn btn-outline btn-sm" onclick="showToast('Google Calendar sync coming soon','')">Sync Calendar</button>
+          <button class="btn-primary-action" onclick="openModal('new-booking')">
+            <span class="plus-ico">+</span> New Booking
+          </button>
         </div>
       </div>
-      <div style="padding:28px;display:grid;grid-template-columns:1fr 300px;gap:20px;">
-        <div class="card card-pad-lg">
+      <div class="page-inner" style="flex-direction:row;align-items:start;">
+        <div class="card card-pad-lg" style="flex:1;">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
             <div class="section-title" id="cal-month-label">Loading…</div>
             <div style="display:flex;gap:6px;">
@@ -188,17 +514,15 @@
           </div>
           <div class="cal-grid" id="cal-grid"></div>
         </div>
-        <div style="display:flex;flex-direction:column;gap:14px;">
+        <div style="width:280px;flex-shrink:0;display:flex;flex-direction:column;gap:14px;">
           <div class="card card-pad">
-            <div style="font-weight:600;font-size:13.5px;margin-bottom:13px;">Upcoming Bookings</div>
-            <div id="upcoming-bookings">
-              <div class="loading"><div class="spinner"></div></div>
-            </div>
+            <div class="section-row"><div class="section-title">Upcoming</div></div>
+            <div id="upcoming-bookings"><div class="loading"><div class="spinner"></div></div></div>
           </div>
           <div class="card card-pad">
-            <div style="font-weight:600;font-size:13.5px;margin-bottom:6px;">Booking Link</div>
-            <div style="font-size:12px;color:var(--text-mid);margin-bottom:11px;line-height:1.6;">Share with clients so they can book directly.</div>
-            <button class="btn btn-outline btn-full btn-sm" onclick="copyBookingLink()">📋 Copy booking link</button>
+            <div class="section-title" style="margin-bottom:6px;">Booking Link</div>
+            <div style="font-size:12px;color:var(--text-mid);margin-bottom:11px;line-height:1.6;">Share with clients to book directly.</div>
+            <button class="btn btn-outline btn-full btn-sm" onclick="copyBookingLink()">📋 Copy link</button>
           </div>
         </div>
       </div>
@@ -207,25 +531,27 @@
     <!-- ── INVOICES ── -->
     <div id="page-invoices" class="page">
       <div class="topbar">
-        <div class="topbar-title">Invoices</div>
-        <div class="topbar-actions">
-          <button class="btn btn-dark" onclick="openModal('new-invoice')">+ New Invoice</button>
+        <div class="topbar-left"><div class="topbar-page-title">Invoices</div></div>
+        <div class="topbar-right">
+          <button class="btn-primary-action" onclick="openModal('new-invoice')">
+            <span class="plus-ico">+</span> New Invoice
+          </button>
         </div>
       </div>
-      <div style="padding:28px;">
+      <div class="page-inner">
         <div class="stats-row" style="grid-template-columns:repeat(3,1fr);" id="invoice-stats">
-          <div class="stat-card"><div class="spinner"></div></div>
-          <div class="stat-card"><div class="spinner"></div></div>
-          <div class="stat-card"><div class="spinner"></div></div>
+          <div class="stat-card glass"><div class="spinner"></div></div>
+          <div class="stat-card glass"><div class="spinner"></div></div>
+          <div class="stat-card glass"><div class="spinner"></div></div>
         </div>
         <div class="wf-wrap">
           <table class="wf-table">
             <thead><tr>
               <th>Invoice</th><th>Client</th><th>Project</th>
-              <th>Amount</th><th>Due Date</th><th>Status</th><th>Share</th><th></th>
+              <th>Amount</th><th>Due Date</th><th>Status</th><th>Share</th>
             </tr></thead>
             <tbody id="invoices-tbody">
-              <tr><td colspan="8"><div class="loading"><div class="spinner"></div></div></td></tr>
+              <tr><td colspan="7"><div class="loading"><div class="spinner"></div></div></td></tr>
             </tbody>
           </table>
         </div>
@@ -235,12 +561,14 @@
     <!-- ── CONTRACTS ── -->
     <div id="page-contracts" class="page">
       <div class="topbar">
-        <div class="topbar-title">Contracts</div>
-        <div class="topbar-actions">
-          <button class="btn btn-dark" onclick="openModal('new-contract')">+ New Contract</button>
+        <div class="topbar-left"><div class="topbar-page-title">Contracts</div></div>
+        <div class="topbar-right">
+          <button class="btn-primary-action" onclick="openModal('new-contract')">
+            <span class="plus-ico">+</span> New Contract
+          </button>
         </div>
       </div>
-      <div style="padding:28px;">
+      <div class="page-inner">
         <div id="contracts-list">
           <div class="loading"><div class="spinner"></div> Loading contracts…</div>
         </div>
@@ -250,14 +578,14 @@
     <!-- ── FILES ── -->
     <div id="page-files" class="page">
       <div class="topbar">
-        <div class="topbar-title">Files</div>
-        <div class="topbar-actions">
+        <div class="topbar-left"><div class="topbar-page-title">Files</div></div>
+        <div class="topbar-right">
           <select id="files-project-filter" class="btn btn-outline btn-sm" onchange="loadFiles()" style="padding:6px 28px 6px 10px;">
             <option value="">All projects</option>
           </select>
         </div>
       </div>
-      <div style="padding:28px;">
+      <div class="page-inner">
         <div class="upload-zone" id="upload-zone">
           <div class="upload-zone-icon">☁️</div>
           <div class="upload-zone-text">Drop files here or click to upload</div>
@@ -272,12 +600,14 @@
     <!-- ── NOTES ── -->
     <div id="page-notes" class="page">
       <div class="topbar">
-        <div class="topbar-title">Notes & Links</div>
-        <div class="topbar-actions">
-          <button class="btn btn-dark" onclick="openModal('add-note')">+ New Note</button>
+        <div class="topbar-left"><div class="topbar-page-title">Notes & Links</div></div>
+        <div class="topbar-right">
+          <button class="btn-primary-action" onclick="openModal('add-note')">
+            <span class="plus-ico">+</span> New Note
+          </button>
         </div>
       </div>
-      <div style="padding:28px;">
+      <div class="page-inner">
         <div id="notes-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
           <div class="loading" style="grid-column:1/-1;"><div class="spinner"></div> Loading…</div>
         </div>
@@ -287,17 +617,17 @@
     <!-- ── NOTIFICATIONS ── -->
     <div id="page-notifications" class="page">
       <div class="topbar">
-        <div class="topbar-title">Email Notifications</div>
-        <div class="topbar-actions">
-          <button class="btn btn-dark" onclick="saveNotificationSettings()">Save Settings</button>
+        <div class="topbar-left"><div class="topbar-page-title">Email Notifications</div></div>
+        <div class="topbar-right">
+          <button class="btn-primary-action" onclick="saveNotificationSettings()">
+            <span class="plus-ico" style="font-size:12px;">✓</span> Save
+          </button>
         </div>
       </div>
-      <div style="padding:28px;max-width:620px;">
-        <div style="font-size:13.5px;color:var(--text-mid);margin-bottom:20px;line-height:1.65;">
-          Configure which emails are sent automatically. All emails use your studio name and branding.
-        </div>
-        <div class="card" style="overflow:hidden;margin-bottom:18px;">
-          <div style="padding:13px 16px;background:var(--surface2);border-bottom:1px solid var(--border);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--text-mid);">Client Notifications</div>
+      <div class="page-inner" style="max-width:620px;">
+        <div style="font-size:13.5px;color:var(--text-mid);line-height:1.65;">Configure which emails are sent automatically.</div>
+        <div class="card" style="overflow:hidden;">
+          <div style="padding:13px 16px;background:var(--surface2);border-bottom:1px solid var(--border);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-mid);">Client Notifications</div>
           <div class="email-rule"><div class="email-rule-info"><div class="email-rule-title">Invoice sent</div><div class="email-rule-desc">Client receives email when you send an invoice</div></div><button class="toggle on" id="notif-invoice_sent" onclick="this.classList.toggle('on')"></button></div>
           <div class="email-rule"><div class="email-rule-info"><div class="email-rule-title">Invoice overdue reminder</div><div class="email-rule-desc">Auto reminder 3 days after due date</div></div><button class="toggle on" id="notif-invoice_overdue_reminder" onclick="this.classList.toggle('on')"></button></div>
           <div class="email-rule"><div class="email-rule-info"><div class="email-rule-title">Contract sent for signature</div><div class="email-rule-desc">Client receives contract and signing link</div></div><button class="toggle on" id="notif-contract_sent" onclick="this.classList.toggle('on')"></button></div>
@@ -305,7 +635,7 @@
           <div class="email-rule"><div class="email-rule-info"><div class="email-rule-title">New message</div><div class="email-rule-desc">Client emailed when you send them a message</div></div><button class="toggle on" id="notif-message_to_client" onclick="this.classList.toggle('on')"></button></div>
         </div>
         <div class="card" style="overflow:hidden;">
-          <div style="padding:13px 16px;background:var(--surface2);border-bottom:1px solid var(--border);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--text-mid);">Your Notifications</div>
+          <div style="padding:13px 16px;background:var(--surface2);border-bottom:1px solid var(--border);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-mid);">Your Notifications</div>
           <div class="email-rule"><div class="email-rule-info"><div class="email-rule-title">Invoice paid</div><div class="email-rule-desc">Notify me when a client pays</div></div><button class="toggle on" id="notif-invoice_paid" onclick="this.classList.toggle('on')"></button></div>
           <div class="email-rule"><div class="email-rule-info"><div class="email-rule-title">Contract signed</div><div class="email-rule-desc">Notify me when a client signs a contract</div></div><button class="toggle on" id="notif-contract_signed" onclick="this.classList.toggle('on')"></button></div>
           <div class="email-rule"><div class="email-rule-info"><div class="email-rule-title">New message from client</div><div class="email-rule-desc">Notify me when a client messages</div></div><button class="toggle on" id="notif-message_from_client" onclick="this.classList.toggle('on')"></button></div>
@@ -316,10 +646,12 @@
 
     <!-- ── SETTINGS ── -->
     <div id="page-settings" class="page">
-      <div class="topbar"><div class="topbar-title">Settings</div></div>
-      <div style="padding:28px;max-width:580px;">
-        <div class="card card-pad-lg" style="margin-bottom:18px;">
-          <div style="font-weight:600;font-size:15px;margin-bottom:18px;">Business Profile</div>
+      <div class="topbar">
+        <div class="topbar-left"><div class="topbar-page-title">Settings</div></div>
+      </div>
+      <div class="page-inner" style="max-width:580px;">
+        <div class="card card-pad-lg">
+          <div style="font-weight:700;font-size:15px;margin-bottom:18px;">Business Profile</div>
           <div class="fgroup"><label>Business Name</label><input type="text" id="s-business-name" placeholder="My Studio"></div>
           <div class="fgroup"><label>Full Name</label><input type="text" id="s-full-name" placeholder="Jane Smith"></div>
           <div class="fgroup"><label>Email</label><input type="email" id="s-email" placeholder="hello@mystudio.com"></div>
@@ -333,8 +665,8 @@
           </div>
           <button class="btn btn-dark" onclick="saveProfile()">Save Profile</button>
         </div>
-        <div class="card card-pad-lg" style="margin-bottom:18px;">
-          <div style="font-weight:600;font-size:15px;margin-bottom:18px;">Client Portal</div>
+        <div class="card card-pad-lg">
+          <div style="font-weight:700;font-size:15px;margin-bottom:18px;">Client Portal</div>
           <div class="fgroup"><label>Portal Name</label><input type="text" id="s-portal-name" placeholder="Client Portal"></div>
           <div class="fgroup"><label>Welcome Message</label><textarea id="s-portal-welcome" placeholder="Welcome! Here you'll find all your invoices, contracts and project updates."></textarea></div>
           <div class="fgroup">
@@ -343,30 +675,28 @@
               <input class="share-link-input" id="portal-url" readonly>
               <button class="btn btn-outline btn-sm" onclick="copyPortalUrl()">📋 Copy</button>
             </div>
-            <div class="field-hint">Share this with clients so they can access their portal.</div>
           </div>
           <button class="btn btn-dark" onclick="savePortalSettings()">Save Portal Settings</button>
         </div>
-        <div class="card card-pad-lg" style="margin-bottom:18px;">
+        <div class="card card-pad-lg">
           <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px;">
-            <div style="width:20px;height:20px;background:var(--text);border-radius:4px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-              <span style="font-size:12px;font-weight:700;color:var(--surface);font-family:serif;">N</span>
+            <div style="width:20px;height:20px;background:var(--ink2);border-radius:4px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              <span style="font-size:12px;font-weight:700;color:white;font-family:serif;">N</span>
             </div>
-            <div style="font-weight:600;font-size:15px;">Notion Integration</div>
+            <div style="font-weight:700;font-size:15px;">Notion Integration</div>
           </div>
-          <div style="font-size:13px;color:var(--text-mid);margin-bottom:16px;line-height:1.65;">Connect Notion to see your recently edited pages on the dashboard. You need a Notion Internal Integration token.</div>
+          <div style="font-size:13px;color:var(--text-mid);margin-bottom:16px;line-height:1.65;">Connect Notion to see your recently edited pages on the dashboard.</div>
           <div class="fgroup">
             <label>Notion Integration Token</label>
             <input type="password" id="s-notion-token" placeholder="secret_xxxxxxxxxxxxxxxx">
-            <div class="field-hint">Create one at notion.so/my-integrations → New integration → copy the Internal Integration Secret</div>
           </div>
           <div style="display:flex;gap:8px;">
             <button class="btn btn-dark" onclick="saveNotionToken()">Save Token</button>
-            <button class="btn btn-ghost" onclick="testNotionConnection()">Test connection</button>
+            <button class="btn btn-outline" onclick="testNotionConnection()">Test connection</button>
           </div>
         </div>
         <div class="card card-pad-lg">
-          <div style="font-weight:600;font-size:15px;margin-bottom:18px;">Security</div>
+          <div style="font-weight:700;font-size:15px;margin-bottom:18px;">Security</div>
           <div class="fgroup"><label>New Password</label><input type="password" id="s-new-password" placeholder="New password"></div>
           <div class="fgroup"><label>Confirm Password</label><input type="password" id="s-confirm-password" placeholder="Confirm new password"></div>
           <button class="btn btn-dark" onclick="changePassword()">Update Password</button>
@@ -377,13 +707,15 @@
     <!-- ── TIME TRACKING ── -->
     <div id="page-time" class="page">
       <div class="topbar">
-        <div class="topbar-title">Time Tracking</div>
-        <div class="topbar-actions">
+        <div class="topbar-left"><div class="topbar-page-title">Time Tracking</div></div>
+        <div class="topbar-right">
           <button class="btn btn-outline btn-sm" onclick="openTimeProjectModal()">+ New Project</button>
-          <button class="btn btn-dark btn-sm" onclick="openManualTimeEntry()">+ Add Entry</button>
+          <button class="btn-primary-action" onclick="openManualTimeEntry()">
+            <span class="plus-ico">+</span> Add Entry
+          </button>
         </div>
       </div>
-      <div style="padding:28px;" id="time-page-content">
+      <div class="page-inner" id="time-page-content">
         <div class="loading"><div class="spinner"></div> Loading…</div>
       </div>
     </div>
@@ -391,16 +723,16 @@
     <!-- ── TIME PROJECT DETAIL ── -->
     <div id="page-time-project-detail" class="page">
       <div class="topbar">
-        <div class="topbar-title">
-          <span class="topbar-crumb" onclick="showPage('time',document.getElementById('nav-time'))">Time Tracking</span>
-          <span class="topbar-sep">›</span>
-          <span id="time-pd-title">Project</span>
+        <div class="topbar-left">
+          <span class="topbar-crumb" onclick="showPage('time',document.getElementById('nav-time'))" style="font-size:15px;font-weight:500;color:var(--text-mid);cursor:pointer;">Time Tracking</span>
+          <span style="color:var(--mid);margin:0 8px;">›</span>
+          <span id="time-pd-title" class="topbar-page-title">Project</span>
         </div>
-        <div class="topbar-actions">
+        <div class="topbar-right">
           <button class="btn btn-green btn-sm" id="time-pd-clockin-btn" onclick="quickClockInFromDetail()">▶ Clock In</button>
         </div>
       </div>
-      <div style="padding:28px;" id="time-project-detail-content">
+      <div class="page-inner" id="time-project-detail-content">
         <div class="loading"><div class="spinner"></div> Loading…</div>
       </div>
     </div>
@@ -408,29 +740,19 @@
   </div><!-- /main -->
 </div><!-- /app-layout -->
 
-<!-- ══════════════════════════════════════════
-     MODALS
-══════════════════════════════════════════ -->
+<!-- ══ MODALS (unchanged) ══ -->
 
-<!-- New Project -->
 <div id="modal-new-project" class="modal-overlay">
   <div class="modal">
     <div class="modal-hdr"><div class="modal-title">New Project</div><button class="modal-x" onclick="closeModal('new-project')">×</button></div>
     <div class="modal-body">
       <div class="fgroup"><label>Project Name</label><input type="text" id="np-name" placeholder="e.g. Smith Family Branding"></div>
-      <div class="fgroup"><label>Client</label>
-        <select id="np-client">
-          <option value="">Select client…</option>
-        </select>
-      </div>
+      <div class="fgroup"><label>Client</label><select id="np-client"><option value="">Select client…</option></select></div>
       <div class="fgroup"><label>Service Type</label>
         <select id="np-service">
-          <option>Media Services</option>
-          <option>Branding & Web</option>
-          <option>Consultation & Coaching</option>
-          <option>Photography</option>
-          <option>Copywriting</option>
-          <option>Other</option>
+          <option>Media Services</option><option>Branding & Web</option>
+          <option>Consultation & Coaching</option><option>Photography</option>
+          <option>Copywriting</option><option>Other</option>
         </select>
       </div>
       <div class="form-row">
@@ -448,7 +770,6 @@
   </div>
 </div>
 
-<!-- New Client -->
 <div id="modal-new-client" class="modal-overlay">
   <div class="modal narrow">
     <div class="modal-hdr"><div class="modal-title">Add Client</div><button class="modal-x" onclick="closeModal('new-client')">×</button></div>
@@ -469,7 +790,6 @@
   </div>
 </div>
 
-<!-- New Invoice -->
 <div id="modal-new-invoice" class="modal-overlay">
   <div class="modal wide">
     <div class="modal-hdr"><div class="modal-title">Create Invoice</div><button class="modal-x" onclick="closeModal('new-invoice')">×</button></div>
@@ -486,27 +806,27 @@
       <div class="fgroup">
         <label>Payment Link (optional)</label>
         <input type="url" id="ni-payment-link" placeholder="e.g. https://wise.com/pay/your-link">
-        <div class="field-hint">If set, a "Pay Now" button linking here will appear on the invoice.</div>
+        <div class="field-hint">If set, a "Pay Now" button will appear on the invoice.</div>
       </div>
       <div style="margin-bottom:14px;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-          <div style="font-weight:600;font-size:13px;">Line Items</div>
+          <div style="font-weight:700;font-size:13px;">Line Items</div>
         </div>
         <table style="width:100%;border-collapse:collapse;">
           <thead><tr style="border-bottom:1.5px solid var(--border);">
-            <th style="text-align:left;padding:0 0 8px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text-mid);width:50%;">Description</th>
-            <th style="text-align:left;padding:0 8px 8px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text-mid);">Rate (£)</th>
-            <th style="text-align:left;padding:0 8px 8px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text-mid);">Qty</th>
-            <th style="text-align:right;padding:0 0 8px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text-mid);">Total</th>
+            <th style="text-align:left;padding:0 0 8px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-mid);width:50%;">Description</th>
+            <th style="text-align:left;padding:0 8px 8px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-mid);">Rate (£)</th>
+            <th style="text-align:left;padding:0 8px 8px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-mid);">Qty</th>
+            <th style="text-align:right;padding:0 0 8px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-mid);">Total</th>
             <th style="width:30px;"></th>
           </tr></thead>
           <tbody id="line-items-body"></tbody>
         </table>
         <button class="btn btn-ghost btn-sm" onclick="addLineItem()" style="color:var(--accent);margin-top:8px;">+ Add line item</button>
       </div>
-      <div style="text-align:right;border-top:2px solid var(--ink);padding-top:12px;">
-        <span style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text-mid);margin-right:16px;">Total</span>
-        <span style="font-family:'DM Serif Display',serif;font-size:22px;" id="invoice-total">£0.00</span>
+      <div style="text-align:right;border-top:2px solid var(--ink2);padding-top:12px;">
+        <span style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-mid);margin-right:16px;">Total</span>
+        <span style="font-size:22px;font-weight:800;" id="invoice-total">£0.00</span>
       </div>
     </div>
     <div class="modal-footer">
@@ -517,18 +837,13 @@
   </div>
 </div>
 
-<!-- Share Invoice Link -->
 <div id="modal-share-invoice" class="modal-overlay">
   <div class="modal narrow">
     <div class="modal-hdr"><div class="modal-title">Share Invoice Link</div><button class="modal-x" onclick="closeModal('share-invoice')">×</button></div>
     <div class="modal-body">
-      <div style="font-size:13.5px;color:var(--text-mid);margin-bottom:18px;line-height:1.65;">
-        Share this link so your client can view and pay this invoice without logging in.
-      </div>
+      <div style="font-size:13.5px;color:var(--text-mid);margin-bottom:18px;line-height:1.65;">Share this link so your client can view and pay without logging in.</div>
       <div class="fgroup"><label>Select Invoice</label>
-        <select id="share-invoice-select" onchange="updateShareLink()">
-          <option value="">Choose invoice…</option>
-        </select>
+        <select id="share-invoice-select" onchange="updateShareLink()"><option value="">Choose invoice…</option></select>
       </div>
       <div class="fgroup">
         <label>Share Link</label>
@@ -537,7 +852,7 @@
           <button class="btn btn-outline btn-sm" onclick="copyShareLink()">📋 Copy</button>
         </div>
       </div>
-      <div class="auth-info">🔒 Anyone with this link can view this invoice, but cannot access any other client data.</div>
+      <div class="auth-info">🔒 Anyone with this link can view this invoice only.</div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('share-invoice')">Done</button>
@@ -546,7 +861,6 @@
   </div>
 </div>
 
-<!-- New Contract -->
 <div id="modal-new-contract" class="modal-overlay">
   <div class="modal wide">
     <div class="modal-hdr"><div class="modal-title">Send Contract</div><button class="modal-x" onclick="closeModal('new-contract')">×</button></div>
@@ -580,28 +894,19 @@
   </div>
 </div>
 
-<!-- Add Note -->
 <div id="modal-add-note" class="modal-overlay">
   <div class="modal narrow">
     <div class="modal-hdr"><div class="modal-title">Add Note or Link</div><button class="modal-x" onclick="closeModal('add-note')">×</button></div>
     <div class="modal-body">
       <div class="fgroup"><label>Type</label>
-        <select id="note-type" onchange="toggleNoteType()">
-          <option value="note">Note</option>
-          <option value="link">Link / URL</option>
-        </select>
+        <select id="note-type" onchange="toggleNoteType()"><option value="note">Note</option><option value="link">Link / URL</option></select>
       </div>
       <div class="fgroup"><label>Title</label><input type="text" id="note-title" placeholder="e.g. Brief notes / Moodboard"></div>
       <div class="fgroup" id="note-content-group"><label>Content</label><textarea id="note-content" placeholder="Write your note…"></textarea></div>
       <div class="fgroup" id="note-url-group" style="display:none;"><label>URL</label><input type="url" id="note-url" placeholder="https://"></div>
-      <div class="fgroup"><label>Project</label>
-        <select id="note-project"><option value="">General (no project)</option></select>
-      </div>
+      <div class="fgroup"><label>Project</label><select id="note-project"><option value="">General (no project)</option></select></div>
       <div class="fgroup"><label>Visible to client in portal?</label>
-        <select id="note-visible">
-          <option value="false">No — private</option>
-          <option value="true">Yes — show in client portal</option>
-        </select>
+        <select id="note-visible"><option value="false">No — private</option><option value="true">Yes — show in client portal</option></select>
       </div>
     </div>
     <div class="modal-footer">
@@ -611,7 +916,6 @@
   </div>
 </div>
 
-<!-- New Booking -->
 <div id="modal-new-booking" class="modal-overlay">
   <div class="modal narrow">
     <div class="modal-hdr"><div class="modal-title">New Booking</div><button class="modal-x" onclick="closeModal('new-booking')">×</button></div>
@@ -636,7 +940,6 @@
   </div>
 </div>
 
-<!-- Time Project Modal -->
 <div id="modal-time-project-modal" class="modal-overlay">
   <div class="modal narrow">
     <div class="modal-hdr"><div class="modal-title" id="tp-modal-title">New Time Project</div><button class="modal-x" onclick="closeModal('time-project-modal')">×</button></div>
@@ -667,9 +970,7 @@
         </select>
       </div>
       <div class="fgroup"><label>Notes</label><textarea id="tp-notes" placeholder="Client info, brief, rate notes…"></textarea></div>
-      <div class="fgroup"><label>Colour</label>
-        <div id="tp-color-swatches" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
-      </div>
+      <div class="fgroup"><label>Colour</label><div id="tp-color-swatches" style="display:flex;gap:8px;flex-wrap:wrap;"></div></div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('time-project-modal')">Cancel</button>
@@ -678,7 +979,6 @@
   </div>
 </div>
 
-<!-- Time Entry Modal -->
 <div id="modal-time-entry-modal" class="modal-overlay">
   <div class="modal narrow">
     <div class="modal-hdr"><div class="modal-title">Add Time Entry</div><button class="modal-x" onclick="closeModal('time-entry-modal')">×</button></div>
@@ -688,6 +988,9 @@
       <div class="fgroup"><label>Description</label><input type="text" id="te-desc" placeholder="What did you work on?"></div>
       <div class="form-row">
         <div class="fgroup"><label>Date</label><input type="date" id="te-date"></div>
+        <div class="fgroup"><label>Hourly Rate Override (£)</label><input type="number" id="te-hourly-rate" placeholder="Leave blank to use project rate" step="0.01" min="0"></div>
+      </div>
+      <div class="form-row">
         <div class="fgroup"><label>Start Time</label><input type="time" id="te-start"></div>
         <div class="fgroup"><label>End Time</label><input type="time" id="te-end"></div>
       </div>
@@ -699,22 +1002,21 @@
   </div>
 </div>
 
-<!-- Time Invoice Modal -->
 <div id="modal-time-invoice-modal" class="modal-overlay">
   <div class="modal narrow">
     <div class="modal-hdr"><div class="modal-title">Create Invoice</div><button class="modal-x" onclick="closeModal('time-invoice-modal')">×</button></div>
     <div class="modal-body">
       <input type="hidden" id="ti-tp-id">
       <div style="background:var(--surface2);border-radius:var(--r);padding:14px;margin-bottom:16px;">
-        <div style="font-weight:600;font-size:14px;color:var(--text);margin-bottom:4px;" id="ti-project-name"></div>
+        <div style="font-weight:700;font-size:14px;color:var(--text);margin-bottom:4px;" id="ti-project-name"></div>
         <div style="font-size:12px;color:var(--text-mid);" id="ti-entries-count"></div>
         <div style="display:flex;justify-content:space-between;margin-top:10px;padding-top:10px;border-top:1px solid var(--border);">
           <div style="font-size:13px;color:var(--text-mid);">Subtotal</div>
-          <div style="font-weight:600;" id="ti-subtotal"></div>
+          <div style="font-weight:700;" id="ti-subtotal"></div>
         </div>
         <div style="display:flex;justify-content:space-between;margin-top:4px;">
           <div style="font-size:13px;color:var(--text-mid);">Total (inc. VAT)</div>
-          <div style="font-weight:600;color:var(--accent);" id="ti-total"></div>
+          <div style="font-weight:700;color:var(--accent);" id="ti-total"></div>
         </div>
       </div>
       <div class="form-row">
@@ -731,16 +1033,6 @@
   </div>
 </div>
 
-<style>
-@keyframes timerPulse {
-  0%, 100% { box-shadow: 0 0 0 0 currentColor; opacity: 1; }
-  50% { box-shadow: 0 0 0 4px transparent; opacity: 0.7; }
-}
-.row-actions { opacity: 0; }
-div:hover > .row-actions { opacity: 1; }
-</style>
-
-<!-- Invoice Preview Modal -->
 <div id="modal-invoice-preview" class="modal-overlay">
   <div class="modal wide">
     <div class="modal-hdr">
@@ -764,7 +1056,14 @@ div:hover > .row-actions { opacity: 1; }
   </div>
 </div>
 
+<style>
+@keyframes timerPulse { 0%,100%{box-shadow:0 0 0 0 currentColor;opacity:1} 50%{box-shadow:0 0 0 4px transparent;opacity:.7} }
+.row-actions{opacity:0;}
+div:hover>.row-actions{opacity:1;}
+</style>
+
 <div id="toast" class="toast"></div>
+<button class="fab" onclick="openModal('new-project')">+</button>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/client.js"></script>

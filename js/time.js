@@ -14,6 +14,49 @@ function th(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').r
 function fmtDur(s){s=Math.max(0,Math.floor(s||0));return `${Math.floor(s/3600)}:${String(Math.floor((s%3600)/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;}
 function fmtDurShort(s){s=Math.max(0,Math.floor(s||0));return `${Math.floor(s/3600)}:${String(Math.floor((s%3600)/60)).padStart(2,'0')}`;}
 function getTP(id){if(!id)return null;return timeProjects.find(p=>String(p.id)===String(id))||null;}
+
+// Get rate and name for a time entry — checks time_project_id first, then project_id
+function getEntryRate(entry){
+  if(entry.time_project_id){
+    const tp=getTP(entry.time_project_id);
+    if(tp)return tp.rate||0;
+  }
+  if(entry.project_id){
+    const sp=allProjects.find(p=>String(p.id)===String(entry.project_id));
+    if(sp)return sp.hourly_rate||0;
+  }
+  // Check entry-level override rate
+  return entry.hourly_rate||0;
+}
+
+function getEntryProjectName(entry){
+  if(entry.time_project_id){
+    const tp=getTP(entry.time_project_id);
+    if(tp)return tp.name;
+  }
+  if(entry.project_id){
+    const sp=allProjects.find(p=>String(p.id)===String(entry.project_id));
+    if(sp)return sp.name;
+  }
+  return '—';
+}
+
+function getEntryProjectColor(entry){
+  if(entry.time_project_id){
+    const tp=getTP(entry.time_project_id);
+    if(tp)return tp.color||'var(--accent)';
+  }
+  if(entry.project_id){
+    const sp=allProjects.find(p=>String(p.id)===String(entry.project_id));
+    if(sp)return sp.color||'var(--accent)';
+  }
+  return 'var(--mid)';
+}
+
+// Get the linked project ID for an entry (either time or studio)
+function getEntryLinkedId(entry){
+  return entry.time_project_id||entry.project_id||null;
+}
 function todayStr(){return new Date().toISOString().slice(0,10);}
 function weekStartStr(){const d=new Date();d.setDate(d.getDate()-((d.getDay()+6)%7));return d.toISOString().slice(0,10);}
 function monthStartStr(){const d=new Date();d.setDate(1);return d.toISOString().slice(0,10);}
@@ -30,11 +73,11 @@ function formatDateLbl(d){
 function fmtMonth(ym){if(!ym)return'';const[y,m]=ym.split('-');return new Date(parseInt(y),parseInt(m)-1,1).toLocaleDateString('en-GB',{month:'short',year:'numeric'});}
 
 function getTodayH(){return timeEntries.filter(e=>e.date===todayStr()&&e.duration&&!e.running).reduce((s,e)=>s+(e.duration||0),0);}
-function getTodayE(){return timeEntries.filter(e=>e.date===todayStr()&&e.duration&&!e.running).reduce((s,e)=>{const tp=getTP(e.time_project_id);return s+((e.duration||0)/3600)*(tp?.rate||0);},0);}
+function getTodayE(){return timeEntries.filter(e=>e.date===todayStr()&&e.duration&&!e.running).reduce((s,e)=>s+((e.duration||0)/3600)*getEntryRate(e),0);}
 function getWeekH(){const ws=weekStartStr();return timeEntries.filter(e=>e.date>=ws&&e.duration&&!e.running).reduce((s,e)=>s+(e.duration||0),0);}
-function getWeekE(){const ws=weekStartStr();return timeEntries.filter(e=>e.date>=ws&&e.duration&&!e.running).reduce((s,e)=>{const tp=getTP(e.time_project_id);return s+((e.duration||0)/3600)*(tp?.rate||0);},0);}
+function getWeekE(){const ws=weekStartStr();return timeEntries.filter(e=>e.date>=ws&&e.duration&&!e.running).reduce((s,e)=>s+((e.duration||0)/3600)*getEntryRate(e),0);}
 function getMonthH(){const ms=monthStartStr();return timeEntries.filter(e=>e.date>=ms&&e.duration&&!e.running).reduce((s,e)=>s+(e.duration||0),0);}
-function getMonthE(){const ms=monthStartStr();return timeEntries.filter(e=>e.date>=ms&&e.duration&&!e.running).reduce((s,e)=>{const tp=getTP(e.time_project_id);return s+((e.duration||0)/3600)*(tp?.rate||0);},0);}
+function getMonthE(){const ms=monthStartStr();return timeEntries.filter(e=>e.date>=ms&&e.duration&&!e.running).reduce((s,e)=>s+((e.duration||0)/3600)*getEntryRate(e),0);}
 
 async function loadTimeData(){
   if(!currentUser)return;
@@ -165,29 +208,31 @@ function renderDashboardClockWidget(){
   let timerArea='';
   if(runningEntry){
     const tp=getTP(runningEntry.time_project_id);
-    timerArea=`<div style="background:var(--green-light);border:1px solid rgba(61,122,82,.2);border-radius:var(--r);padding:14px;display:flex;align-items:center;gap:14px">
-      <div style="width:10px;height:10px;border-radius:50%;background:${tp?.color||'var(--green)'};animation:timerPulse 1.2s ease-in-out infinite;flex-shrink:0"></div>
-      <div style="flex:1;min-width:0"><div style="font-weight:600;font-size:13.5px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${th(tp?.name||'Timer running')}</div>
-      <div style="font-size:12px;color:var(--text-mid)">${th(runningEntry.description||'No description')}</div></div>
-      <div class="live-timer-display" style="font-family:'DM Serif Display',serif;font-size:22px;color:var(--green);min-width:90px;text-align:right">${fmtDur(timerSeconds)}</div>
-      <button class="btn btn-red btn-sm" onclick="clockOut()">⏹ Stop</button></div>`;
+    timerArea=`<div class="timer-card">
+      <div class="timer-running-row"><div class="timer-pulse"></div><span class="timer-running-lbl">Running</span></div>
+      <div class="timer-display live-timer-display">${fmtDur(timerSeconds)}</div>
+      <div class="timer-proj-name">${th(tp?.name||'Timer running')} · ${th(runningEntry.description||'—')}</div>
+      <button class="timer-btn stop" onclick="clockOut()">⏹ Stop timer</button>
+    </div>`;
   }else if(!active.length){
     timerArea=`<div style="text-align:center;padding:16px;color:var(--text-mid);font-size:13px">No time projects yet. <span onclick="showPage('time',document.getElementById('nav-time'));openTimeProjectModal()" style="color:var(--accent);cursor:pointer">Create one →</span></div>`;
   }else{
-    timerArea=`<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-      <select id="dashboard-timer-select" style="flex:1;min-width:140px;padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--r);font-family:inherit;font-size:13px;color:var(--text);background:var(--surface2);outline:none">
+    timerArea=`<div class="timer-card">
+      <div class="timer-display" style="color:rgba(255,255,255,.3);margin-bottom:14px;">0:00:00</div>
+      <select id="dashboard-timer-select" style="width:100%;padding:10px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.08);color:#fff;font-family:inherit;font-size:13px;outline:none;margin-bottom:8px;">
         <option value="">Select project…</option>${active.map(p=>`<option value="${p.id}">${th(p.name)}${p.client?' · '+th(p.client):''}</option>`).join('')}
       </select>
-      <input type="text" id="dashboard-timer-desc" placeholder="What are you working on?" style="flex:2;min-width:140px;padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--r);font-family:inherit;font-size:13px;color:var(--text);background:var(--surface2);outline:none" onkeydown="if(event.key==='Enter')startDashboardTimer()">
-      <button class="btn btn-green btn-sm" onclick="startDashboardTimer()" style="white-space:nowrap">▶ Clock In</button></div>`;
+      <input type="text" id="dashboard-timer-desc" placeholder="What are you working on?" style="width:100%;padding:10px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.08);color:#fff;font-family:inherit;font-size:13px;outline:none;margin-bottom:0;" onkeydown="if(event.key==='Enter')startDashboardTimer()" />
+      <button class="timer-btn start" onclick="startDashboardTimer()">▶ Clock In</button>
+    </div>`;
   }
   const recent=timeEntries.filter(e=>!e.running&&e.duration).slice(0,4);
   const recentHtml=recent.length?`<div style="margin-top:14px;border-top:1px solid var(--border);padding-top:12px">
     <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--text-mid);margin-bottom:8px">Recent</div>
-    ${recent.map(e=>{const tp=getTP(e.time_project_id);const earn=((e.duration||0)/3600)*(tp?.rate||0);
+    ${recent.map(e=>{const earn=((e.duration||0)/3600)*getEntryRate(e);
       return`<div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border)">
-        <div style="width:7px;height:7px;border-radius:50%;background:${tp?.color||'var(--mid)'};flex-shrink:0"></div>
-        <div style="flex:1;font-size:13px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${th(tp?.name||'—')}</div>
+        <div style="width:7px;height:7px;border-radius:50%;background:${getEntryProjectColor(e)};flex-shrink:0"></div>
+        <div style="flex:1;font-size:13px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${th(getEntryProjectName(e))}</div>
         <div style="font-size:12px;color:var(--text-mid);white-space:nowrap">${fmtDurShort(e.duration)}</div>
         ${earn>0?`<div style="font-size:12px;color:var(--text-mid);white-space:nowrap">${formatCurrency(earn)}</div>`:''}
       </div>`;}).join('')}
@@ -247,7 +292,7 @@ function renderTimePage(){
   const groups={};completed.forEach(e=>{const d=e.date||'Unknown';if(!groups[d])groups[d]=[];groups[d].push(e);});
   const entriesHtml=completed.length?Object.entries(groups).map(([date,ents])=>{
     const tot=ents.reduce((s,e)=>s+(e.duration||0),0);
-    const earn=ents.reduce((s,e)=>{const tp=getTP(e.time_project_id);return s+((e.duration||0)/3600)*(tp?.rate||0);},0);
+    const earn=ents.reduce((s,e)=>s+((e.duration||0)/3600)*getEntryRate(e),0);
     return`<div style="margin-bottom:20px">
       <div style="display:flex;justify-content:space-between;padding:0 0 8px;border-bottom:1px solid var(--border);margin-bottom:4px">
         <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--text-mid)">${formatDateLbl(date)}</div>
@@ -343,7 +388,7 @@ function renderTimeProjectDetail(tpId){
   const wSec=pe.filter(e=>e.date>=ws).reduce((s,e)=>s+(e.duration||0),0);
   const mSec=pe.filter(e=>e.date>=ms).reduce((s,e)=>s+(e.duration||0),0);
   const aSec=pe.reduce((s,e)=>s+(e.duration||0),0);
-  const r=tp.rate||0;
+  const r=tp.rate||tp.hourly_rate||0;
   const uninv=pe.filter(e=>!e.invoiced);
   const uninvSec=uninv.reduce((s,e)=>s+(e.duration||0),0);
   const isRun=runningEntry&&String(runningEntry.time_project_id)===String(tpId);
@@ -403,7 +448,7 @@ function renderTimeProjectDetail(tpId){
       </div>
       <div style="font-size:12px;color:var(--text-mid);margin-bottom:10px">${filtered.length} entries · ${fmtDurShort(filtered.reduce((s,e)=>s+(e.duration||0),0))}</div>
       ${filtered.length===0?'<div style="text-align:center;padding:20px;color:var(--text-mid);font-size:13px">No entries for this period</div>':
-        filtered.map(e=>{const er=((e.duration||0)/3600)*r;
+        filtered.map(e=>{const er=((e.duration||0)/3600)*(e.hourly_rate||r);
           return`<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border)" onmouseover="this.querySelector('.da').style.opacity='1'" onmouseout="this.querySelector('.da').style.opacity='0'">
             <div style="font-size:12px;color:var(--text-mid);min-width:65px">${formatDateLbl(e.date)}</div>
             <div style="flex:1;font-size:13px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${th(e.description||'—')}</div>
@@ -479,11 +524,7 @@ function renderProjectClockIn(studioProjectId){
 }
 
 
-function clockInFromProjectWidget(projectId){
-  const desc=document.getElementById('proj-clock-desc')?.value.trim()||'';
-  if(!projectId){showToast('No project','error');return;}
-  clockIn(null,desc,projectId);
-}
+
 
 function openTimeProjectModal(tpId=null,linkedProjId=null){
   document.getElementById('tp-edit-id').value=tpId||'';
@@ -546,43 +587,94 @@ async function saveTimeProject(){
   updateTimerSidebarWidget();refreshTimeUI();updateDashboardClockWidget();
 }
 
-function openManualTimeEntry(presetTpId=null){
+function openManualTimeEntry(presetId=null){
   document.getElementById('te-edit-id').value='';
   document.getElementById('te-date').value=todayStr();
   document.getElementById('te-start').value='';
   document.getElementById('te-end').value='';
   document.getElementById('te-desc').value='';
+  const rateEl=document.getElementById('te-hourly-rate');
+  if(rateEl)rateEl.value='';
   const sel=document.getElementById('te-project');
-  if(sel){sel.innerHTML='<option value="">Select project…</option>'+timeProjects.filter(p=>!p.archived).map(p=>`<option value="${p.id}">${th(p.name)}</option>`).join('');
-  if(presetTpId)sel.value=String(presetTpId);}
+  if(sel){
+    const options=['<option value="">No project</option>'];
+    if(typeof allProjects!=='undefined'&&allProjects.length){
+      options.push('<optgroup label="Projects">');
+      allProjects.forEach(p=>options.push(`<option value="sp:${p.id}">${th(p.name)}${p.hourly_rate?' (£'+p.hourly_rate+'/hr)':''}</option>`));
+      options.push('</optgroup>');
+    }
+    if(timeProjects.filter(p=>!p.archived).length){
+      options.push('<optgroup label="Time Projects">');
+      timeProjects.filter(p=>!p.archived).forEach(p=>options.push(`<option value="tp:${p.id}">${th(p.name)}${p.rate?' (£'+p.rate+'/hr)':''}</option>`));
+      options.push('</optgroup>');
+    }
+    sel.innerHTML=options.join('');
+    if(presetId)sel.value=`sp:${presetId}`;
+  }
   openModal('time-entry-modal');
 }
 
 async function editTimeEntry(entryId){
   const e=timeEntries.find(x=>String(x.id)===String(entryId));if(!e)return;
   const sel=document.getElementById('te-project');
-  if(sel){sel.innerHTML='<option value="">Select project…</option>'+timeProjects.filter(p=>!p.archived).map(p=>`<option value="${p.id}">${th(p.name)}</option>`).join('');sel.value=String(e.time_project_id||'');}
+  if(sel){
+    // Populate with studio projects (primary) + any time projects
+    const options=['<option value="">No project</option>'];
+    // Studio projects
+    if(typeof allProjects!=='undefined'&&allProjects.length){
+      options.push('<optgroup label="Projects">');
+      allProjects.forEach(p=>options.push(`<option value="sp:${p.id}">${th(p.name)}${p.hourly_rate?' (£'+p.hourly_rate+'/hr)':''}</option>`));
+      options.push('</optgroup>');
+    }
+    // Time-only projects
+    if(timeProjects.filter(p=>!p.archived).length){
+      options.push('<optgroup label="Time Projects">');
+      timeProjects.filter(p=>!p.archived).forEach(p=>options.push(`<option value="tp:${p.id}">${th(p.name)}${p.rate?' (£'+p.rate+'/hr)':''}</option>`));
+      options.push('</optgroup>');
+    }
+    sel.innerHTML=options.join('');
+    // Set current value
+    if(e.project_id)sel.value=`sp:${e.project_id}`;
+    else if(e.time_project_id)sel.value=`tp:${e.time_project_id}`;
+  }
   document.getElementById('te-edit-id').value=e.id;
   document.getElementById('te-desc').value=e.description||'';
   document.getElementById('te-date').value=e.date||'';
   document.getElementById('te-start').value=e.start_time||'';
   document.getElementById('te-end').value=e.end_time||'';
+  // Hourly rate override
+  const rateEl=document.getElementById('te-hourly-rate');
+  if(rateEl)rateEl.value=e.hourly_rate||getEntryRate(e)||'';
   openModal('time-entry-modal');
 }
 
 async function saveTimeEntry(){
-  const tpId=document.getElementById('te-project').value;
+  const rawProj=document.getElementById('te-project').value;
   const desc=document.getElementById('te-desc').value.trim();
   const date=document.getElementById('te-date').value;
   const start=document.getElementById('te-start').value;
   const end=document.getElementById('te-end').value;
   const editId=document.getElementById('te-edit-id').value;
+  const hourlyRate=parseFloat(document.getElementById('te-hourly-rate')?.value)||null;
   if(!date||!start||!end){showToast('Date, start and end time are required','error');return;}
   const[sh,sm]=start.split(':').map(Number);
   const[eh,em]=end.split(':').map(Number);
   const durMins=(eh*60+em)-(sh*60+sm);
   if(durMins<=0){showToast('End time must be after start time','error');return;}
-  const row={owner_id:currentUser.id,time_project_id:tpId||null,description:desc||null,date,start_time:start,end_time:end,duration:durMins*60,invoiced:false,running:false};
+  // Parse sp:/tp: prefix
+  let studioProjectId=null,timeProjectId=null;
+  if(rawProj.startsWith('sp:'))studioProjectId=rawProj.slice(3);
+  else if(rawProj.startsWith('tp:'))timeProjectId=rawProj.slice(3);
+  const row={
+    owner_id:currentUser.id,
+    time_project_id:timeProjectId||null,
+    project_id:studioProjectId||null,
+    description:desc||null,
+    date,start_time:start,end_time:end,
+    duration:durMins*60,
+    hourly_rate:hourlyRate||null,
+    invoiced:false,running:false
+  };
   let error;
   if(editId)({error}=await db.from('time_entries').update(row).eq('id',editId));
   else({error}=await db.from('time_entries').insert(row));
@@ -597,6 +689,7 @@ async function deleteTimeEntry(entryId){
   await db.from('time_entries').delete().eq('id',entryId);
   timeEntries=timeEntries.filter(e=>String(e.id)!==String(entryId));
   showToast('Entry deleted');refreshTimeUI();updateDashboardClockWidget();
+  if(typeof renderDashboard==='function')renderDashboard();
 }
 
 async function quickClockIn(tpId,name){
