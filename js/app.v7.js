@@ -525,7 +525,7 @@ async function openProject(projectId){
             </div>
           </div>
           <div id="pd-tab-invoices" class="portal-tab-content active" style="padding:14px 16px">
-            ${(invoices||[]).map(inv=>`<div class="inv-item"><span class="inv-icon">🧾</span><div class="inv-info"><div class="inv-num">#${escapeHtml(inv.invoice_number)}</div><div class="inv-meta">${inv.due_date?'Due '+formatDate(inv.due_date):'No due date'}</div></div><div class="inv-amt">${formatCurrency(inv.total)}</div>${statusBadge(inv.status)}<button class="btn btn-ghost btn-sm" onclick="openShareInvoiceModal('${inv.id}')">🔗</button></div>`).join('')}
+            ${(invoices||[]).map(inv=>{const od=inv.status==='sent'&&inv.due_date&&isOverdue(inv.due_date);return`<div class="inv-item" onclick="openInvoicePreview('${inv.id}')"><span class="inv-icon">🧾</span><div class="inv-info"><div class="inv-num">#${escapeHtml(inv.invoice_number)}</div><div class="inv-meta" style="color:${od?'var(--red)':''};">${inv.due_date?(od?'Overdue · ':'')+formatDate(inv.due_date):'No due date'}</div></div><div class="inv-amt">${formatCurrency(inv.total)}</div>${statusBadge(od?'overdue':inv.status)}</div>`;}).join('')}
             ${!(invoices||[]).length?'<div style="color:var(--text-mid);font-size:13px;text-align:center;padding:14px">No invoices yet</div>':''}
             <button class="btn btn-outline btn-full btn-sm" style="margin-top:8px" onclick="openModal('new-invoice')">+ Add invoice</button>
           </div>
@@ -925,9 +925,30 @@ async function createInvoice(status='draft'){
   if(!number){showToast('Invoice number required','error');return;}
   const items=getLineItems();const subtotal=items.reduce((s,i)=>s+i.total,0);
   const paymentLink=document.getElementById('ni-payment-link')?.value.trim()||null;
-  const{error}=await db.from('invoices').insert({owner_id:currentUser.id,client_id:document.getElementById('ni-client').value||null,project_id:document.getElementById('ni-project').value||null,invoice_number:number,line_items:items,subtotal,total:subtotal,due_date:document.getElementById('ni-due').value||null,notes:document.getElementById('ni-notes').value,payment_link:paymentLink,status,sent_at:status==='sent'?new Date().toISOString():null});
+  const dbStatus=status==='download'?'draft':status;
+  const{data:savedInv,error}=await db.from('invoices').insert({
+    owner_id:currentUser.id,
+    client_id:document.getElementById('ni-client').value||null,
+    project_id:document.getElementById('ni-project').value||null,
+    invoice_number:number,line_items:items,subtotal,total:subtotal,
+    due_date:document.getElementById('ni-due').value||null,
+    notes:document.getElementById('ni-notes').value,
+    payment_link:paymentLink,
+    status:dbStatus,
+    sent_at:null
+  }).select().single();
   if(error){showToast('Failed','error');return;}
-  closeModal('new-invoice');await loadInvoices();renderInvoicesPage();showToast(status==='sent'?'Invoice sent!':'Draft saved!','success');}
+  closeModal('new-invoice');
+  await loadInvoices();
+  if(status==='download'){
+    // Open invoice preview modal for download + mark-as-sent
+    openInvoicePreview(savedInv.id);
+    showToast('Invoice saved — download below','success');
+  } else {
+    renderInvoicesPage();
+    showToast('Draft saved!','success');
+  }
+}
 
 function addLineItem(){
   const tbody=document.getElementById('line-items-body');const id=lineItemCount++;
@@ -966,6 +987,198 @@ async function createBooking(){
 function loadContractTemplate(){
   const templates={photography:`This Photography Services Agreement is between [Business Name] and [Client Name].\n\n1. SERVICES\nThe photographer will provide photography services as agreed.\n\n2. DELIVERABLES\nFinal edited images delivered within 30 days of the shoot.\n\n3. PAYMENT\nA non-refundable deposit of 25% secures the booking. Balance due on delivery.\n\n4. COPYRIGHT\nThe photographer retains copyright. Client receives a licence for personal use.\n\n5. CANCELLATION\nCancellation with less than 7 days notice forfeits the deposit.`,freelancer:`This Services Agreement is between [Business Name] and [Client Name].\n\n1. SCOPE OF WORK\nServices as outlined in the project brief.\n\n2. PAYMENT\nDue within 14 days of invoice. Late payments incur 2% monthly interest.\n\n3. REVISIONS\nUp to 2 rounds of revisions included.\n\n4. IP\nAll work product transfers to client upon full payment.`,branding:`This Branding & Design Agreement is between [Business Name] and [Client Name].\n\n1. PROJECT SCOPE\nBrand identity design including logo, colour palette, and typography.\n\n2. REVISIONS\nTwo rounds included. Further revisions quoted separately.\n\n3. FILE DELIVERY\nFinal files provided upon receipt of full payment.\n\n4. USAGE RIGHTS\nClient receives full ownership upon payment.`};
   const t=templates[document.getElementById('nc2-template').value];if(t)document.getElementById('nc2-content').value=t;}
+
+/* ══════════════════════════════════════════
+   INVOICE PREVIEW / EDIT / DELETE
+══════════════════════════════════════════ */
+
+function openInvoicePreview(invoiceId){
+  const inv=allInvoices.find(i=>i.id===invoiceId);
+  if(!inv){showToast('Invoice not found','error');return;}
+  const client=allClients.find(c=>c.id===inv.client_id);
+  const project=allProjects.find(p=>p.id===inv.project_id);
+  const clientName=client?`${client.first_name} ${client.last_name}`:'—';
+  const items=inv.line_items||[];
+  const overdueFlag=inv.status==='sent'&&inv.due_date&&isOverdue(inv.due_date);
+  const displayStatus=overdueFlag?'overdue':inv.status;
+
+  const modal=document.getElementById('modal-invoice-preview');
+  if(!modal)return;
+
+  document.getElementById('inv-preview-body').innerHTML=`
+    <div style="background:var(--ink);padding:24px 28px;margin:-20px -24px 24px;display:flex;justify-content:space-between;align-items:flex-start;">
+      <div>
+        <div style="font-family:'DM Serif Display',serif;font-size:20px;color:#f0eeff;">${escapeHtml(currentProfile?.business_name||'Studio')}</div>
+        <div style="font-size:12px;color:rgba(240,238,255,.5);margin-top:3px;">${escapeHtml(currentProfile?.email||'')}</div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-size:11px;color:rgba(240,238,255,.4);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px;">Invoice</div>
+        <div style="font-family:'DM Serif Display',serif;font-size:20px;color:var(--accent);">#${escapeHtml(inv.invoice_number)}</div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px;">
+      <div>
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-mid);margin-bottom:6px;">Billed To</div>
+        <div style="font-weight:500;font-size:14px;color:var(--text);">${escapeHtml(clientName)}</div>
+        ${client?`<div style="font-size:13px;color:var(--text-mid);">${escapeHtml(client.email)}</div>`:''}
+      </div>
+      <div style="text-align:right;">
+        <div style="margin-bottom:8px;">
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-mid);margin-bottom:3px;">Issue Date</div>
+          <div style="font-size:13px;color:var(--text);">${formatDate(inv.created_at)}</div>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-mid);margin-bottom:3px;">Due Date</div>
+          <div style="font-size:13px;color:${overdueFlag?'var(--red)':'var(--text)'};">${inv.due_date?formatDate(inv.due_date):'No due date'}</div>
+        </div>
+      </div>
+    </div>
+
+    <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
+      <thead><tr style="border-bottom:1.5px solid var(--border);">
+        <th style="text-align:left;padding:0 0 10px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-mid);width:50%">Description</th>
+        <th style="text-align:left;padding:0 8px 10px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-mid)">Rate</th>
+        <th style="text-align:left;padding:0 8px 10px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-mid)">Qty</th>
+        <th style="text-align:right;padding:0 0 10px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-mid)">Total</th>
+      </tr></thead>
+      <tbody>
+        ${items.map(item=>`<tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:10px 0;font-size:13.5px;color:var(--text);">${escapeHtml(item.description||'')}</td>
+          <td style="padding:10px 8px;font-size:13.5px;color:var(--text);">${formatCurrency(item.rate)}</td>
+          <td style="padding:10px 8px;font-size:13.5px;color:var(--text);">${item.qty}</td>
+          <td style="padding:10px 0;text-align:right;font-weight:500;color:var(--text);">${formatCurrency(item.total)}</td>
+        </tr>`).join('')}
+      </tbody>
+      <tfoot>
+        <tr>
+          <td colspan="3" style="text-align:right;padding-top:14px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-mid);">Total</td>
+          <td style="text-align:right;padding-top:14px;font-family:'DM Serif Display',serif;font-size:22px;color:var(--text);">${formatCurrency(inv.total)}</td>
+        </tr>
+      </tfoot>
+    </table>
+
+    ${inv.notes?`<div style="padding:14px;background:var(--surface2);border-radius:var(--r);font-size:13px;color:var(--text-mid);line-height:1.6;margin-bottom:16px;">${escapeHtml(inv.notes)}</div>`:''}
+    ${inv.payment_link?`<div style="font-size:12px;color:var(--text-mid);">Payment link: <a href="${escapeHtml(inv.payment_link)}" target="_blank" style="color:var(--accent);">${escapeHtml(inv.payment_link)}</a></div>`:''}
+
+    <div style="margin-top:20px;display:flex;align-items:center;justify-content:space-between;">
+      <div>${statusBadge(displayStatus)}</div>
+      <div style="font-size:12px;color:var(--text-mid);">Created ${formatDate(inv.created_at)}</div>
+    </div>
+  `;
+
+  // Set footer buttons based on status
+  document.getElementById('inv-preview-mark-sent').style.display=inv.status==='draft'?'block':'none';
+  document.getElementById('inv-preview-mark-paid').style.display=inv.status==='sent'?'block':'none';
+  document.getElementById('inv-preview-inv-id').value=invoiceId;
+
+  openModal('invoice-preview');
+}
+
+async function invoicePreviewMarkSent(){
+  const id=document.getElementById('inv-preview-inv-id').value;
+  await db.from('invoices').update({status:'sent',sent_at:new Date().toISOString()}).eq('id',id);
+  await loadInvoices();
+  const inv=allInvoices.find(i=>i.id===id);
+  if(inv){
+    document.getElementById('inv-preview-mark-sent').style.display='none';
+    document.getElementById('inv-preview-mark-paid').style.display='block';
+  }
+  renderInvoicesPage();
+  if(currentProjectId)openProject(currentProjectId);
+  showToast('Invoice marked as sent','success');
+}
+
+async function invoicePreviewMarkPaid(){
+  const id=document.getElementById('inv-preview-inv-id').value;
+  await db.from('invoices').update({status:'paid',paid_at:new Date().toISOString()}).eq('id',id);
+  await loadInvoices();
+  document.getElementById('inv-preview-mark-paid').style.display='none';
+  renderInvoicesPage();
+  if(currentProjectId)openProject(currentProjectId);
+  showToast('Invoice marked as paid!','success');
+}
+
+async function deleteInvoiceFromPreview(){
+  const id=document.getElementById('inv-preview-inv-id').value;
+  const inv=allInvoices.find(i=>i.id===id);
+  if(!window.confirm(`Delete invoice #${inv?.invoice_number}? This cannot be undone.`))return;
+  await db.from('invoices').delete().eq('id',id);
+  await loadInvoices();
+  closeModal('invoice-preview');
+  renderInvoicesPage();
+  if(currentProjectId)openProject(currentProjectId);
+  showToast('Invoice deleted','success');
+}
+
+function printInvoicePreview(){
+  const id=document.getElementById('inv-preview-inv-id').value;
+  const inv=allInvoices.find(i=>i.id===id);
+  const client=allClients.find(c=>c.id===inv?.client_id);
+  const clientName=client?`${client.first_name} ${client.last_name}`:'';
+  const items=inv?.line_items||[];
+
+  const win=window.open('','_blank');
+  win.document.write(`<!DOCTYPE html><html><head><title>Invoice #${escapeHtml(inv?.invoice_number||'')}</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{font-family:-apple-system,'DM Sans',sans-serif;color:#16132a;padding:40px;font-size:14px;line-height:1.6;}
+    .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:32px;padding-bottom:20px;border-bottom:2px solid #16132a;}
+    .biz-name{font-size:22px;font-weight:600;letter-spacing:-.3px;}
+    .inv-num{font-size:20px;font-weight:600;color:#6c5ce7;text-align:right;}
+    .inv-label{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:#888;margin-bottom:4px;text-align:right;}
+    .meta{display:flex;justify-content:space-between;margin-bottom:28px;}
+    .meta-block{}
+    .meta-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#888;margin-bottom:5px;}
+    .meta-val{font-size:14px;color:#16132a;}
+    table{width:100%;border-collapse:collapse;margin-bottom:20px;}
+    th{text-align:left;padding:8px 0;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#888;border-bottom:1.5px solid #dde3f2;}
+    td{padding:10px 0;border-bottom:1px solid #eef1f8;font-size:14px;}
+    th:last-child,td:last-child{text-align:right;}
+    .total-row td{border-top:2px solid #16132a;border-bottom:none;padding-top:14px;font-weight:600;font-size:18px;}
+    .notes{background:#f0f2f9;padding:14px;border-radius:8px;font-size:13px;color:#5a6280;margin-bottom:16px;}
+    .footer{text-align:center;margin-top:32px;padding-top:16px;border-top:1px solid #dde3f2;font-size:12px;color:#888;}
+    ${inv?.payment_link?`.pay-link{display:inline-block;margin:16px 0;padding:12px 24px;background:#6c5ce7;color:white;text-decoration:none;border-radius:8px;font-weight:600;font-size:14px;}`:''}
+  </style></head><body>
+  <div class="header">
+    <div>
+      <div class="biz-name">${escapeHtml(currentProfile?.business_name||'Studio')}</div>
+      <div style="font-size:13px;color:#888;margin-top:4px;">${escapeHtml(currentProfile?.email||'')}</div>
+    </div>
+    <div>
+      <div class="inv-label">Invoice</div>
+      <div class="inv-num">#${escapeHtml(inv?.invoice_number||'')}</div>
+    </div>
+  </div>
+  <div class="meta">
+    <div class="meta-block">
+      <div class="meta-label">Billed To</div>
+      <div class="meta-val" style="font-weight:500">${escapeHtml(clientName)}</div>
+      ${client?`<div class="meta-val" style="color:#888">${escapeHtml(client.email)}</div>`:''}
+    </div>
+    <div class="meta-block" style="text-align:right">
+      <div class="meta-label">Issue Date</div>
+      <div class="meta-val">${formatDate(inv?.created_at)}</div>
+      ${inv?.due_date?`<div class="meta-label" style="margin-top:10px">Due Date</div><div class="meta-val">${formatDate(inv.due_date)}</div>`:''}
+    </div>
+  </div>
+  <table>
+    <thead><tr><th style="width:50%">Description</th><th>Rate</th><th>Qty</th><th>Total</th></tr></thead>
+    <tbody>${items.map(item=>`<tr>
+      <td>${escapeHtml(item.description||'')}</td>
+      <td>${formatCurrency(item.rate)}</td>
+      <td>${item.qty}</td>
+      <td>${formatCurrency(item.total)}</td>
+    </tr>`).join('')}</tbody>
+    <tfoot><tr class="total-row"><td colspan="3" style="text-align:right">Total</td><td>${formatCurrency(inv?.total)}</td></tr></tfoot>
+  </table>
+  ${inv?.notes?`<div class="notes">${escapeHtml(inv.notes)}</div>`:''}
+  ${inv?.payment_link?`<a href="${escapeHtml(inv.payment_link)}" class="pay-link">Pay Now</a>`:''}
+  <div class="footer">Thank you for your business</div>
+  </body></html>`);
+  win.document.close();
+  setTimeout(()=>win.print(),600);
+}
 
 /* ══════════════════════════════════════════
    SHARE INVOICE

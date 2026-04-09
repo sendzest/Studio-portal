@@ -740,6 +740,30 @@
 div:hover > .row-actions { opacity: 1; }
 </style>
 
+<!-- Invoice Preview Modal -->
+<div id="modal-invoice-preview" class="modal-overlay">
+  <div class="modal wide">
+    <div class="modal-hdr">
+      <div class="modal-title">Invoice</div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button class="btn btn-ghost btn-sm" onclick="printInvoicePreview()">🖨 Print / PDF</button>
+        <button class="modal-x" onclick="closeModal('invoice-preview')">×</button>
+      </div>
+    </div>
+    <input type="hidden" id="inv-preview-inv-id">
+    <div class="modal-body" id="inv-preview-body" style="min-height:300px;">
+      <div class="loading"><div class="spinner"></div></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-red btn-sm" onclick="deleteInvoiceFromPreview()">Delete</button>
+      <div style="flex:1;"></div>
+      <button class="btn btn-outline" id="inv-preview-mark-sent" onclick="invoicePreviewMarkSent()" style="display:none;">Mark as Sent</button>
+      <button class="btn btn-green" id="inv-preview-mark-paid" onclick="invoicePreviewMarkPaid()" style="display:none;">Mark as Paid</button>
+      <button class="btn btn-outline" onclick="closeModal('invoice-preview')">Close</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast" class="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
