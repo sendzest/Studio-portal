@@ -473,7 +473,7 @@ function renderProjectClockIn(studioProjectId){
   const isRunHere=runningEntry&&String(runningEntry.project_id)===String(studioProjectId);
   const projEntries=timeEntries.filter(e=>String(e.project_id)===String(studioProjectId)&&e.duration&&!e.running);
   const totSec=projEntries.reduce((s,e)=>s+(e.duration||0),0);
-  const rate=project?parseFloat(project.rate)||0:0;
+  const rate=project?parseFloat(project.hourly_rate)||parseFloat(project.rate)||0:0;
   const totEarn=(totSec/3600)*rate;
   const todayStr=new Date().toISOString().slice(0,10);
   const todaySec=projEntries.filter(e=>e.date===todayStr).reduce((s,e)=>s+(e.duration||0),0);
@@ -497,6 +497,10 @@ function renderProjectClockIn(studioProjectId){
       +'</div>';
   }
 
+  const uninvEntries=projEntries.filter(e=>!e.invoiced);
+  const uninvSec=uninvEntries.reduce((s,e)=>s+(e.duration||0),0);
+  const uninvEarn=rate>0?(uninvSec/3600)*rate:0;
+
   html+='<div style="border-top:1px solid var(--border);padding-top:10px;display:flex;flex-direction:column;gap:5px">'
     +'<div style="display:flex;justify-content:space-between;font-size:13px"><span style="color:var(--text-mid)">Today</span>'
     +'<span style="font-weight:500;color:var(--text)">'+fmtDurShort(todaySec+(isRunHere?timerSeconds:0))+'</span></div>'
@@ -504,7 +508,13 @@ function renderProjectClockIn(studioProjectId){
     +'<span style="font-weight:500;color:var(--text)">'+fmtDurShort(totSec)+'</span></div>'
     +(rate>0?'<div style="display:flex;justify-content:space-between;font-size:13px"><span style="color:var(--text-mid)">Total earned</span>'
       +'<span style="font-weight:500;color:var(--text)">'+formatCurrency(totEarn)+'</span></div>':'')
-    +'<button class="btn btn-ghost btn-full btn-sm" id="pct-view" style="margin-top:4px;font-size:11px">View all time</button>'
+    +(uninvEntries.length>0?'<div style="background:var(--amber-light);border-radius:12px;padding:10px 12px;margin-top:6px;">'
+      +'<div style="font-size:11.5px;font-weight:700;color:var(--amber);margin-bottom:6px;">'
+      +uninvEntries.length+' uninvoiced entr'+(uninvEntries.length===1?'y':'ies')+(rate>0?' · '+formatCurrency(uninvEarn):'')
+      +'</div>'
+      +'<button class="btn btn-full btn-sm" id="pct-invoice" style="background:var(--amber);color:#fff;border:none;font-size:12px;">Invoice uninvoiced time</button>'
+      +'</div>':'')
+    +'<button class="btn btn-ghost btn-full btn-sm" id="pct-view" style="margin-top:4px;font-size:11px;">View all time</button>'
     +'</div>';
 
   div.innerHTML=html;
@@ -521,6 +531,8 @@ function renderProjectClockIn(studioProjectId){
   if(stopBtn)stopBtn.onclick=clockOut;
   const viewBtn=c.querySelector('#pct-view');
   if(viewBtn)viewBtn.onclick=function(){showPage('time',document.getElementById('nav-time'));};
+  const invBtn=c.querySelector('#pct-invoice');
+  if(invBtn)invBtn.onclick=function(){openTimeInvoiceModal(null,studioProjectId);};
 }
 
 
@@ -701,17 +713,29 @@ async function quickClockIn(tpId,name){
   await clockIn(tpId,'');
 }
 
-function openTimeInvoiceModal(tpId){
-  const tp=getTP(tpId);if(!tp)return;
-  const uninv=timeEntries.filter(e=>String(e.time_project_id)===String(tpId)&&!e.invoiced&&e.duration);
-  if(!uninv.length){showToast('No uninvoiced entries','error');return;}
+function openTimeInvoiceModal(tpId,studioProjectId=null){
+  // Supports both time projects (tpId) and studio projects (studioProjectId)
+  let name,rate,uninv,linkedProjectId;
+
+  if(tpId){
+    const tp=getTP(tpId);if(!tp)return;
+    name=tp.name;rate=tp.rate||0;linkedProjectId=tp.project_id||null;
+    uninv=timeEntries.filter(e=>String(e.time_project_id)===String(tpId)&&!e.invoiced&&e.duration);
+  } else if(studioProjectId){
+    const sp=(typeof allProjects!=='undefined'?allProjects:[]).find(p=>String(p.id)===String(studioProjectId));
+    if(!sp)return;
+    name=sp.name;rate=parseFloat(sp.hourly_rate)||0;linkedProjectId=studioProjectId;
+    uninv=timeEntries.filter(e=>String(e.project_id)===String(studioProjectId)&&!e.invoiced&&e.duration);
+  } else return;
+
+  if(!uninv.length){showToast('No uninvoiced entries for this project','error');return;}
   const totSec=uninv.reduce((s,e)=>s+(e.duration||0),0);
-  const sub=(totSec/3600)*(tp.rate||0);
-  document.getElementById('ti-project-name').textContent=tp.name;
-  document.getElementById('ti-entries-count').textContent=`${uninv.length} entries · ${fmtDurShort(totSec)}`;
+  const sub=(totSec/3600)*rate;
+  document.getElementById('ti-project-name').textContent=name;
+  document.getElementById('ti-entries-count').textContent=`${uninv.length} ${uninv.length===1?'entry':'entries'} · ${fmtDurShort(totSec)}`;
   document.getElementById('ti-subtotal').textContent=formatCurrency(sub);
   document.getElementById('ti-total').textContent=formatCurrency(sub*1.2);
-  document.getElementById('ti-tp-id').value=tpId;
+  document.getElementById('ti-tp-id').value=tpId||('sp:'+studioProjectId);
   document.getElementById('ti-inv-number').value=`TIME-${new Date().getFullYear()}-${String(Date.now()).slice(-4)}`;
   document.getElementById('ti-due-date').value=todayStr();
   document.getElementById('ti-tax').value='20';
@@ -720,23 +744,60 @@ function openTimeInvoiceModal(tpId){
 }
 
 async function createTimeInvoice(){
-  const tpId=document.getElementById('ti-tp-id').value;
-  const tp=getTP(tpId);if(!tp)return;
-  const uninv=timeEntries.filter(e=>String(e.time_project_id)===String(tpId)&&!e.invoiced&&e.duration);
+  const rawId=document.getElementById('ti-tp-id').value;
+  const isStudioProj=rawId.startsWith('sp:');
   const tax=parseFloat(document.getElementById('ti-tax').value)||0;
+
+  let name,rate,uninv,linkedProjectId;
+
+  if(isStudioProj){
+    const spId=rawId.slice(3);
+    const sp=(typeof allProjects!=='undefined'?allProjects:[]).find(p=>String(p.id)===String(spId));
+    if(!sp){showToast('Project not found','error');return;}
+    name=sp.name;rate=parseFloat(sp.hourly_rate)||0;linkedProjectId=spId;
+    uninv=timeEntries.filter(e=>String(e.project_id)===String(spId)&&!e.invoiced&&e.duration);
+  } else {
+    const tp=getTP(rawId);if(!tp){showToast('Time project not found','error');return;}
+    name=tp.name;rate=tp.rate||0;linkedProjectId=tp.project_id||null;
+    uninv=timeEntries.filter(e=>String(e.time_project_id)===String(rawId)&&!e.invoiced&&e.duration);
+  }
+
+  if(!uninv.length){showToast('No uninvoiced entries','error');return;}
   const totSec=uninv.reduce((s,e)=>s+(e.duration||0),0);
-  const sub=(totSec/3600)*(tp.rate||0);
+  const sub=(totSec/3600)*rate;
   const taxAmt=sub*(tax/100);
-  const{error}=await db.from('invoices').insert({owner_id:currentUser.id,project_id:tp.project_id||null,
+  const share_token=crypto.randomUUID();
+
+  const lineItems=uninv.map(e=>{
+    const hrs=((e.duration||0)/3600);
+    const entryRate=e.hourly_rate||rate;
+    return{
+      description:(e.description||'Time')+' — '+new Date(e.date+'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}),
+      rate:entryRate,
+      qty:Math.round(hrs*100)/100,
+      total:hrs*entryRate
+    };
+  });
+
+  const{error}=await db.from('invoices').insert({
+    owner_id:currentUser.id,
+    project_id:linkedProjectId||null,
     invoice_number:document.getElementById('ti-inv-number').value.trim(),
-    line_items:uninv.map(e=>({description:e.description||'Time',date:e.date,duration:e.duration,rate:tp.rate||0,amount:((e.duration||0)/3600)*(tp.rate||0)})),
-    subtotal:sub,total:sub+taxAmt,due_date:document.getElementById('ti-due-date').value||null,
-    notes:document.getElementById('ti-notes').value||null,status:'sent',sent_at:new Date().toISOString()});
+    line_items:lineItems,
+    subtotal:sub,total:sub+taxAmt,
+    due_date:document.getElementById('ti-due-date').value||null,
+    notes:document.getElementById('ti-notes').value||null,
+    share_token,
+    status:'draft',
+    sent_at:null
+  });
   if(error){showToast('Failed to create invoice: '+error.message,'error');return;}
   await db.from('time_entries').update({invoiced:true}).in('id',uninv.map(e=>e.id));
   await loadTimeData();
   if(typeof loadInvoices==='function')await loadInvoices();
-  closeModal('time-invoice-modal');showToast('Invoice created!','success');refreshTimeUI();
+  closeModal('time-invoice-modal');
+  showToast('Invoice created from '+uninv.length+' time entries!','success');
+  refreshTimeUI();
 }
 
 async function clockInDirectly(studioProjectId){
