@@ -298,10 +298,10 @@ function renderTimePage(){
         <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--text-mid)">${formatDateLbl(date)}</div>
         <div style="font-size:12px;color:var(--text-mid)">${fmtDurShort(tot)} · ${formatCurrency(earn)}</div>
       </div>
-      ${ents.map(e=>{const tp=getTP(e.time_project_id);const er=((e.duration||0)/3600)*(tp?.rate||0);
+      ${ents.map(e=>{const projName=getEntryProjectName(e);const projColor=getEntryProjectColor(e);const er=((e.duration||0)/3600)*getEntryRate(e);const tpId=e.time_project_id;const spId=e.project_id;
         return`<div style="display:flex;align-items:center;gap:10px;padding:8px;border-radius:8px" onmouseover="this.querySelector('.tea').style.opacity='1'" onmouseout="this.querySelector('.tea').style.opacity='0'">
-          <div style="width:8px;height:8px;border-radius:50%;background:${tp?.color||'var(--mid)'};flex-shrink:0"></div>
-          <div style="font-size:13px;font-weight:500;color:var(--accent);min-width:110px;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" onclick="openTimeProjectDetail('${e.time_project_id}')">${th(tp?.name||'—')}</div>
+          <div style="width:8px;height:8px;border-radius:50%;background:${projColor};flex-shrink:0"></div>
+          <div style="font-size:13px;font-weight:500;color:var(--accent);min-width:110px;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" onclick="${tpId?`openTimeProjectDetail('${tpId}')`:spId?`showPage('projects',document.getElementById('nav-projects'))`:''}">${th(projName)}</div>
           <div style="font-size:12px;color:var(--text-mid);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${th(e.description||'')}</div>
           <div style="font-size:11px;color:var(--text-mid);white-space:nowrap">${e.start_time||''} – ${e.end_time||''}</div>
           <div style="font-size:13px;font-weight:500;min-width:44px;text-align:right;color:var(--text)">${fmtDurShort(e.duration)}</div>

@@ -1114,9 +1114,9 @@ async function deleteInvoiceFromPreview(){
   if(error){showToast('Failed to delete: '+error.message,'error');return;}
   await loadInvoices();
   closeModal('invoice-preview');
-  renderInvoicesPage();
+  try{renderInvoicesPage();}catch(e){console.warn('renderInvoicesPage:',e);}
   updateInvoiceBadge();
-  if(currentProjectId)openProject(currentProjectId);
+  if(currentProjectId){try{openProject(currentProjectId);}catch(e){console.warn('openProject:',e);}}
   showToast('Invoice deleted','success');
 }
 
