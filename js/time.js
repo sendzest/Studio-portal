@@ -17,18 +17,17 @@ function getTP(id){if(!id)return null;return timeProjects.find(p=>String(p.id)==
 
 // Get rate and name for a time entry — checks time_project_id first, then project_id
 function getEntryRate(entry){
+  if(entry.hourly_rate)return entry.hourly_rate;
   if(entry.time_project_id){
     const tp=getTP(entry.time_project_id);
-    if(tp)return tp.rate||0;
+    if(tp&&tp.rate)return tp.rate;
   }
   if(entry.project_id){
     const sp=allProjects.find(p=>String(p.id)===String(entry.project_id));
-    if(sp)return sp.hourly_rate||0;
+    if(sp&&sp.hourly_rate)return sp.hourly_rate;
   }
-  // Check entry-level override rate
-  return entry.hourly_rate||0;
+  return 0;
 }
-
 function getEntryProjectName(entry){
   if(entry.time_project_id){
     const tp=getTP(entry.time_project_id);
