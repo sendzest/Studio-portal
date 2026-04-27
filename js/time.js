@@ -770,7 +770,7 @@ async function createTimeInvoice(){
 
   const lineItems=uninv.map(e=>{
     const hrs=((e.duration||0)/3600);
-    const entryRate=e.hourly_rate||rate;
+    const entryRate=getEntryRate(e);
     return{
       description:(e.description||'Time')+' — '+new Date(e.date+'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}),
       rate:entryRate,
